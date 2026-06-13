@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EcoTrack — Carbon Footprint Tracker</title>
+  <meta name="description" content="Track, understand, and reduce your personal carbon footprint with personalized insights and daily action logging." />
+  <style>
+    /* ===== DESIGN TOKENS ===== */
+    :root {
+      --green-900: #0f2e1a;
+      --green-800: #1a4028;
+      --green-700: #1f5c35;
+      --green-500: #2d9e5f;
+      --green-400: #3dbb74;
+      --green-200: #a8e6bf;
+      --green-100: #d4f5e3;
+      --green-50:  #eefbf4;
+      --amber:     #f59e0b;
+      --red:       #ef4444;
+      --blue:      #3b82f6;
+      --text-main: #0f1f15;
+      --text-mid:  #2d4a38;
+      --text-soft: #6b8f78;
+      --bg:        #f5fbf7;
+      --card:      #ffffff;
+      --border:    #d0eedd;
+      --shadow:    0 2px 12px rgba(15,46,26,0.08);
+      --radius:    12px;
+      --radius-lg: 20px;
+      font-size: 16px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ===== LAYOUT ===== */
+    .app-shell {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 1rem 4rem;
+    }
+
+    /* ===== HEADER ===== */
+    header {
+      background: var(--green-900);
+      color: white;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 700;
+      font-size: 1.15rem;
+      letter-spacing: -0.01em;
+    }
+    .logo-icon { font-size: 1.5rem; }
+    .header-meta { font-size: 0.8rem; color: var(--green-200); text-align: right; }
+    .date-display { font-weight: 600; }
+
+    /* ===== NAV TABS ===== */
+    .tabs {
+      display: flex;
+      gap: 0.25rem;
+      background: var(--green-800);
+      padding: 0.5rem 1.5rem;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--green-200);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover  { background: rgba(255,255,255,0.08); color: white; }
+    .tab-btn.active { background: var(--green-500); color: white; }
+    .tab-btn:focus-visible { outline: 2px solid var(--green-400); outline-offset: 2px; }
+
+    /* ===== SECTIONS ===== */
+    .section { display: none; padding: 1.5rem 0; }
+    .section.active { display: block; }
+
+    /* ===== HERO SUMMARY ===== */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1rem;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .stat-card .label { font-size: 0.75rem; color: var(--text-soft); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+    .stat-card .value { font-size: 1.8rem; font-weight: 700; line-height: 1.1; }
+    .stat-card .unit  { font-size: 0.8rem; color: var(--text-soft); margin-top: 0.2rem; }
+
+    .val-green  { color: var(--green-500); }
+    .val-amber  { color: var(--amber); }
+    .val-red    { color: var(--red); }
+    .val-blue   { color: var(--blue); }
+
+    /* ===== GAUGE ===== */
+    .gauge-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--shadow);
+    }
+    .gauge-wrap h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-mid); }
+    .gauge-bar-bg {
+      background: var(--green-100);
+      border-radius: 99px;
+      height: 24px;
+      overflow: hidden;
+      position: relative;
+    }
+    .gauge-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.5s ease, background 0.3s;
+      min-width: 4px;
+    }
+    .gauge-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: var(--text-soft);
+      margin-top: 0.4rem;
+    }
+    .gauge-verdict {
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      background: var(--green-50);
+      border-left: 4px solid var(--green-400);
+    }
+
+    /* ===== CARDS ===== */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 1rem;
+    }
+    .card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-mid); display: flex; align-items: center; gap: 0.4rem; }
+
+    /* ===== FORM ===== */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .field label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-mid);
+      margin-bottom: 0.3rem;
+    }
+    .field input, .field select {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.9rem;
+      color: var(--text-main);
+      background: var(--bg);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus {
+      outline: none;
+      border-color: var(--green-500);
+      box-shadow: 0 0 0 3px rgba(45,158,95,0.15);
+    }
+    .field .hint { font-size: 0.73rem; color: var(--text-soft); margin-top: 0.25rem; }
+
+    /* ===== BUTTONS ===== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.65rem 1.4rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:focus-visible { outline: 2px solid var(--green-400); outline-offset: 2px; }
+    .btn-primary {
+      background: var(--green-500);
+      color: white;
+      box-shadow: 0 2px 8px rgba(45,158,95,0.3);
+    }
+    .btn-primary:hover { background: var(--green-700); box-shadow: 0 4px 12px rgba(45,158,95,0.35); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-soft);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: var(--green-50); color: var(--text-main); }
+    .btn-danger { background: var(--red); color: white; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+
+    /* ===== LOG TABLE ===== */
+    .log-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .log-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: var(--green-50);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.875rem;
+    }
+    .log-item-left  { flex: 1; }
+    .log-item-name  { font-weight: 600; }
+    .log-item-meta  { font-size: 0.78rem; color: var(--text-soft); }
+    .log-item-co2   { font-weight: 700; min-width: 70px; text-align: right; }
+    .delete-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--text-soft);
+      font-size: 1.1rem;
+      padding: 0.2rem;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .delete-btn:hover { color: var(--red); }
+    .delete-btn:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+    .empty-state { text-align: center; color: var(--text-soft); padding: 2rem; font-size: 0.9rem; }
+
+    /* ===== TIPS ===== */
+    .tips-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+    .tip-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem;
+      box-shadow: var(--shadow);
+      border-top: 4px solid var(--green-500);
+    }
+    .tip-card.urgent { border-top-color: var(--red); }
+    .tip-card.moderate { border-top-color: var(--amber); }
+    .tip-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .tip-title { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .tip-desc { font-size: 0.82rem; color: var(--text-mid); }
+    .tip-saving { font-size: 0.78rem; color: var(--green-500); font-weight: 600; margin-top: 0.5rem; }
+
+    /* ===== CHART ===== */
+    .chart-wrap { overflow-x: auto; }
+    canvas { display: block; max-width: 100%; }
+
+    /* ===== BREAKDOWN ===== */
+    .breakdown-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .breakdown-label { font-size: 0.85rem; font-weight: 500; min-width: 90px; }
+    .breakdown-bar-wrap { flex: 1; background: var(--green-100); border-radius: 99px; height: 10px; overflow: hidden; }
+    .breakdown-bar { height: 100%; border-radius: 99px; transition: width 0.4s; }
+    .breakdown-val { font-size: 0.8rem; font-weight: 700; min-width: 60px; text-align: right; }
+
+    /* ===== BADGE ===== */
+    .badge-grid { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .badge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-soft);
+      background: var(--green-50);
+      border: 2px solid var(--border);
+      min-width: 80px;
+      text-align: center;
+    }
+    .badge.earned { background: var(--green-100); border-color: var(--green-400); color: var(--green-700); }
+    .badge .badge-icon { font-size: 1.6rem; }
+
+    /* ===== PROFILE ===== */
+    .profile-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; }
+    .profile-hint { font-size: 0.82rem; color: var(--text-soft); margin-bottom: 1rem; padding: 0.6rem 0.75rem; background: var(--green-50); border-radius: 8px; }
+
+    /* ===== NOTIFICATION ===== */
+    .notif {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--green-900);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 99px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+      transition: transform 0.3s ease;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    .notif.show { transform: translateX(-50%) translateY(0); }
+
+    /* ===== SKIP LINK (Accessibility) ===== */
+    .skip-link {
+      position: absolute;
+      top: -99px;
+      left: 0;
+      background: var(--green-500);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 0 0 8px 0;
+      font-weight: 600;
+      z-index: 9999;
+      transition: top 0.1s;
+      text-decoration: none;
+    }
+    .skip-link:focus { top: 0; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 600px) {
+      header { flex-direction: column; align-items: flex-start; padding: 1rem; }
+      .header-meta { text-align: left; }
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ===== REDUCED MOTION ===== */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<header role="banner">
+  <div class="logo">
+    <span class="logo-icon" aria-hidden="true">🌱</span>
+    <span>EcoTrack</span>
+  </div>
+  <div class="header-meta">
+    <div class="date-display" id="header-date"></div>
+    <div id="header-total">Loading...</div>
+  </div>
+</header>
+
+<nav role="navigation" aria-label="Main navigation">
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="dashboard" aria-selected="true" role="tab">📊 Dashboard</button>
+    <button class="tab-btn" data-tab="log"       aria-selected="false" role="tab">➕ Log Activity</button>
+    <button class="tab-btn" data-tab="insights"  aria-selected="false" role="tab">💡 Insights</button>
+    <button class="tab-btn" data-tab="history"   aria-selected="false" role="tab">📅 History</button>
+    <button class="tab-btn" data-tab="profile"   aria-selected="false" role="tab">👤 Profile</button>
+  </div>
+</nav>
+
+<main id="main-content" class="app-shell" role="main">
+
+  <!-- ===== DASHBOARD ===== -->
+  <section class="section active" id="tab-dashboard" aria-labelledby="dashboard-heading">
+    <h1 id="dashboard-heading" class="sr-only">Dashboard</h1>
+
+    <div class="summary-grid" role="region" aria-label="Summary statistics">
+      <div class="stat-card">
+        <div class="label">Today</div>
+        <div class="value val-green" id="stat-today">0.0</div>
+        <div class="unit">kg CO₂e</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">This Week</div>
+        <div class="value val-blue" id="stat-week">0.0</div>
+        <div class="unit">kg CO₂e</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">This Month</div>
+        <div class="value val-amber" id="stat-month">0.0</div>
+        <div class="unit">kg CO₂e</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">vs. Avg. Person</div>
+        <div class="value" id="stat-compare">—</div>
+        <div class="unit">annual basis</div>
+      </div>
+    </div>
+
+    <div class="gauge-wrap" role="region" aria-label="Footprint rating">
+      <h2>Your Footprint Rating</h2>
+      <div class="gauge-bar-bg" role="progressbar" aria-labelledby="gauge-label" id="gauge-bar-container">
+        <div class="gauge-bar-fill" id="gauge-bar"></div>
+      </div>
+      <div class="gauge-labels">
+        <span>Low 🌿</span>
+        <span>Average</span>
+        <span>High 🔥</span>
+      </div>
+      <div class="gauge-verdict" id="gauge-verdict" aria-live="polite">Log your first activity to see your rating.</div>
+    </div>
+
+    <div class="card" role="region" aria-label="Breakdown by category">
+      <h3>📂 Breakdown by Category</h3>
+      <div id="breakdown-wrap">
+        <div class="empty-state">No activity logged yet.</div>
+      </div>
+    </div>
+
+    <div class="card" role="region" aria-label="Achievements">
+      <h3>🏅 Achievements</h3>
+      <div class="badge-grid" id="badge-grid"></div>
+    </div>
+  </section>
+
+  <!-- ===== LOG ACTIVITY ===== -->
+  <section class="section" id="tab-log" aria-labelledby="log-heading">
+    <h2 id="log-heading" style="font-size:1.15rem;font-weight:700;margin-bottom:1rem;color:var(--text-mid)">Log an Activity</h2>
+
+    <div class="card">
+      <h3>🚗 Transport</h3>
+      <div class="form-grid">
+        <div class="field">
+          <label for="transport-type">Vehicle Type</label>
+          <select id="transport-type">
+            <option value="car_petrol">Car (Petrol)</option>
+            <option value="car_diesel">Car (Diesel)</option>
+            <option value="car_electric">Car (Electric)</option>
+            <option value="motorcycle">Motorcycle</option>
+            <option value="bus">Bus</option>
+            <option value="train">Train / Metro</option>
+            <option value="auto_rickshaw">Auto Rickshaw</option>
+            <option value="walk_cycle">Walk / Cycle</option>
+            <option value="flight_short">Flight (Short-haul)</option>
+            <option value="flight_long">Flight (Long-haul)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="transport-km">Distance (km)</label>
+          <input type="number" id="transport-km" min="0" step="0.1" placeholder="e.g. 15" />
+          <div class="hint">Enter kilometers traveled</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="App.logTransport()" aria-label="Add transport activity">➕ Add Transport</button>
+    </div>
+
+    <div class="card">
+      <h3>🍔 Food & Diet</h3>
+      <div class="form-grid">
+        <div class="field">
+          <label for="food-type">Meal Type</label>
+          <select id="food-type">
+            <option value="vegan">Vegan Meal</option>
+            <option value="vegetarian">Vegetarian Meal</option>
+            <option value="fish">Meal with Fish</option>
+            <option value="chicken">Meal with Chicken</option>
+            <option value="beef">Meal with Beef/Mutton</option>
+            <option value="dairy_heavy">Dairy-heavy Meal</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="food-servings">Number of Meals</label>
+          <input type="number" id="food-servings" min="1" max="10" step="1" value="1" placeholder="1" />
+          <div class="hint">How many meals today?</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="App.logFood()" aria-label="Add food activity">➕ Add Food</button>
+    </div>
+
+    <div class="card">
+      <h3>⚡ Home Energy</h3>
+      <div class="form-grid">
+        <div class="field">
+          <label for="energy-type">Energy Type</label>
+          <select id="energy-type">
+            <option value="electricity_grid">Grid Electricity (India avg.)</option>
+            <option value="electricity_solar">Solar Electricity</option>
+            <option value="lpg">LPG Cooking Gas</option>
+            <option value="ac_1hr">Air Conditioning (per hour)</option>
+            <option value="washing_machine">Washing Machine (per load)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="energy-amount">Amount</label>
+          <input type="number" id="energy-amount" min="0" step="0.1" placeholder="e.g. 5" />
+          <div class="hint">kWh / units / hours / loads</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="App.logEnergy()" aria-label="Add energy activity">➕ Add Energy</button>
+    </div>
+
+    <div class="card">
+      <h3>🛍️ Shopping & Consumption</h3>
+      <div class="form-grid">
+        <div class="field">
+          <label for="shopping-type">Item Category</label>
+          <select id="shopping-type">
+            <option value="clothing">Clothing / Apparel</option>
+            <option value="electronics">Electronics</option>
+            <option value="plastic_bag">Plastic Bags (count)</option>
+            <option value="online_delivery">Online Delivery Package</option>
+            <option value="furniture">Furniture / Large Item</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="shopping-qty">Quantity</label>
+          <input type="number" id="shopping-qty" min="1" step="1" value="1" placeholder="1" />
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="App.logShopping()" aria-label="Add shopping activity">➕ Add Shopping</button>
+    </div>
+  </section>
+
+  <!-- ===== INSIGHTS ===== -->
+  <section class="section" id="tab-insights" aria-labelledby="insights-heading">
+    <h2 id="insights-heading" style="font-size:1.15rem;font-weight:700;margin-bottom:1rem;color:var(--text-mid)">Personalized Insights</h2>
+
+    <div class="card">
+      <h3>📈 7-Day Trend</h3>
+      <div class="chart-wrap">
+        <canvas id="trend-chart" width="800" height="260" aria-label="7-day carbon footprint trend chart" role="img"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>💡 Reduction Tips — Tailored to You</h3>
+      <div class="tips-grid" id="tips-grid">
+        <div class="empty-state">Log activities to get personalized tips.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🌍 How You Compare</h3>
+      <div id="comparison-section">
+        <div class="breakdown-item">
+          <div class="breakdown-label">You (annual)</div>
+          <div class="breakdown-bar-wrap"><div class="breakdown-bar" id="bar-you" style="background:var(--green-500);width:0%"></div></div>
+          <div class="breakdown-val" id="val-you">—</div>
+        </div>
+        <div class="breakdown-item">
+          <div class="breakdown-label">India avg.</div>
+          <div class="breakdown-bar-wrap"><div class="breakdown-bar" style="background:var(--amber);width:45%"></div></div>
+          <div class="breakdown-val">1.9 t</div>
+        </div>
+        <div class="breakdown-item">
+          <div class="breakdown-label">World avg.</div>
+          <div class="breakdown-bar-wrap"><div class="breakdown-bar" style="background:var(--red);width:80%"></div></div>
+          <div class="breakdown-val">4.7 t</div>
+        </div>
+        <div class="breakdown-item">
+          <div class="breakdown-label">Target 2050</div>
+          <div class="breakdown-bar-wrap"><div class="breakdown-bar" style="background:var(--green-400);width:15%"></div></div>
+          <div class="breakdown-val">0.7 t</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== HISTORY ===== -->
+  <section class="section" id="tab-history" aria-labelledby="history-heading">
+    <h2 id="history-heading" style="font-size:1.15rem;font-weight:700;margin-bottom:1rem;color:var(--text-mid)">Activity History</h2>
+
+    <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="App.filterHistory('all')" id="filter-all">All Time</button>
+      <button class="btn btn-ghost btn-sm" onclick="App.filterHistory('today')" id="filter-today">Today</button>
+      <button class="btn btn-ghost btn-sm" onclick="App.filterHistory('week')" id="filter-week">This Week</button>
+      <button class="btn btn-danger btn-sm" onclick="App.clearAll()" style="margin-left:auto" aria-label="Clear all activity history">🗑 Clear All</button>
+    </div>
+
+    <div class="card">
+      <div id="history-list" class="log-list">
+        <div class="empty-state">No activities logged yet. Start by logging an activity!</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PROFILE ===== -->
+  <section class="section" id="tab-profile" aria-labelledby="profile-heading">
+    <h2 id="profile-heading" style="font-size:1.15rem;font-weight:700;margin-bottom:1rem;color:var(--text-mid)">Your Profile</h2>
+
+    <div class="card">
+      <h3>👤 Personal Details</h3>
+      <div class="profile-hint">Your profile helps EcoTrack personalize reduction tips and context for your lifestyle.</div>
+      <div class="profile-form">
+        <div class="field">
+          <label for="p-name">Name</label>
+          <input type="text" id="p-name" placeholder="Your name" autocomplete="given-name" />
+        </div>
+        <div class="field">
+          <label for="p-city">City</label>
+          <input type="text" id="p-city" placeholder="e.g. Mumbai" />
+        </div>
+        <div class="field">
+          <label for="p-diet">Primary Diet</label>
+          <select id="p-diet">
+            <option value="vegan">Vegan</option>
+            <option value="vegetarian" selected>Vegetarian</option>
+            <option value="omnivore">Omnivore</option>
+            <option value="heavy_meat">Heavy Meat Eater</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="p-transport">Primary Transport</label>
+          <select id="p-transport">
+            <option value="walk_cycle">Walk / Cycle</option>
+            <option value="public">Public Transport</option>
+            <option value="car_petrol" selected>Car (Petrol)</option>
+            <option value="car_electric">Car (Electric)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="p-household">Household Size</label>
+          <input type="number" id="p-household" min="1" max="20" value="3" />
+          <div class="hint">Number of people</div>
+        </div>
+        <div class="field">
+          <label for="p-goal">Monthly CO₂ Goal (kg)</label>
+          <input type="number" id="p-goal" min="10" step="10" placeholder="e.g. 150" />
+          <div class="hint">Leave blank for auto-target</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="App.saveProfile()" style="margin-top:1rem" aria-label="Save profile settings">💾 Save Profile</button>
+    </div>
+
+    <div class="card">
+      <h3>📊 All-time Stats</h3>
+      <div id="profile-stats" style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;font-size:0.9rem;"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Notification toast -->
+<div class="notif" id="notif" role="alert" aria-live="polite"></div>
+
+<style>.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script>
+// ============================================================
+// EMISSIONS FACTORS (kg CO2e per unit)
+// Sources: IPCC, IEA, UK DEFRA, India MoEFCC
+// ============================================================
+const EF = {
+  transport: {
+    car_petrol:    { label: 'Car (Petrol)', unit: 'km',  factor: 0.192 },
+    car_diesel:    { label: 'Car (Diesel)', unit: 'km',  factor: 0.171 },
+    car_electric:  { label: 'Car (Electric)', unit: 'km',factor: 0.053 },
+    motorcycle:    { label: 'Motorcycle', unit: 'km',    factor: 0.114 },
+    bus:           { label: 'Bus', unit: 'km',           factor: 0.089 },
+    train:         { label: 'Train/Metro', unit: 'km',   factor: 0.041 },
+    auto_rickshaw: { label: 'Auto Rickshaw', unit: 'km', factor: 0.096 },
+    walk_cycle:    { label: 'Walk/Cycle', unit: 'km',    factor: 0.000 },
+    flight_short:  { label: 'Flight (Short)', unit: 'km',factor: 0.255 },
+    flight_long:   { label: 'Flight (Long)', unit: 'km', factor: 0.195 },
+  },
+  food: {
+    vegan:       { label: 'Vegan Meal', unit: 'meal',       factor: 0.5  },
+    vegetarian:  { label: 'Vegetarian Meal', unit: 'meal',  factor: 1.0  },
+    fish:        { label: 'Meal with Fish', unit: 'meal',   factor: 2.0  },
+    chicken:     { label: 'Meal with Chicken', unit: 'meal',factor: 3.0  },
+    beef:        { label: 'Meal with Beef', unit: 'meal',   factor: 6.5  },
+    dairy_heavy: { label: 'Dairy-heavy Meal', unit: 'meal', factor: 2.5  },
+  },
+  energy: {
+    electricity_grid:  { label: 'Grid Electricity', unit: 'kWh',  factor: 0.82  },
+    electricity_solar: { label: 'Solar Electricity', unit: 'kWh', factor: 0.05  },
+    lpg:               { label: 'LPG Gas', unit: 'kg',            factor: 2.98  },
+    ac_1hr:            { label: 'Air Conditioning', unit: 'hour', factor: 0.82  },
+    washing_machine:   { label: 'Washing Machine', unit: 'load',  factor: 0.63  },
+  },
+  shopping: {
+    clothing:         { label: 'Clothing Item', unit: 'item',    factor: 10.0  },
+    electronics:      { label: 'Electronics', unit: 'item',      factor: 70.0  },
+    plastic_bag:      { label: 'Plastic Bag', unit: 'bag',       factor: 0.033 },
+    online_delivery:  { label: 'Online Delivery', unit: 'pkg',   factor: 0.5   },
+    furniture:        { label: 'Furniture', unit: 'item',        factor: 40.0  },
+  }
+};
+
+const CATEGORY_COLORS = {
+  transport: '#3b82f6',
+  food:      '#f59e0b',
+  energy:    '#ef4444',
+  shopping:  '#8b5cf6',
+};
+
+// ============================================================
+// DATA LAYER — localStorage persistence
+// ============================================================
+const DB = {
+  KEY_LOGS:    'eco_logs',
+  KEY_PROFILE: 'eco_profile',
+
+  getLogs() {
+    try { return JSON.parse(localStorage.getItem(this.KEY_LOGS) || '[]'); } catch { return []; }
+  },
+  saveLogs(logs) {
+    localStorage.setItem(this.KEY_LOGS, JSON.stringify(logs));
+  },
+  addLog(entry) {
+    const logs = this.getLogs();
+    logs.unshift(entry);
+    this.saveLogs(logs);
+    return logs;
+  },
+  removeLog(id) {
+    const logs = this.getLogs().filter(l => l.id !== id);
+    this.saveLogs(logs);
+    return logs;
+  },
+  clearLogs() {
+    this.saveLogs([]);
+  },
+  getProfile() {
+    try { return JSON.parse(localStorage.getItem(this.KEY_PROFILE) || '{}'); } catch { return {}; }
+  },
+  saveProfile(p) {
+    localStorage.setItem(this.KEY_PROFILE, JSON.stringify(p));
+  }
+};
+
+// ============================================================
+// APP LOGIC
+// ============================================================
+const App = {
+
+  // --- INIT ---
+  init() {
+    this.setHeaderDate();
+    this.loadProfile();
+    this.render();
+    this.setupTabs();
+  },
+
+  setHeaderDate() {
+    document.getElementById('header-date').textContent =
+      new Date().toLocaleDateString('en-IN', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+  },
+
+  setupTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected','true');
+        document.getElementById('tab-' + tab).classList.add('active');
+        if (tab === 'insights') this.renderChart();
+      });
+    });
+  },
+
+  // --- LOGGING ---
+  logTransport() {
+    const type = document.getElementById('transport-type').value;
+    const km   = parseFloat(document.getElementById('transport-km').value);
+    if (!km || km <= 0) { this.notify('⚠️ Enter a valid distance in km.'); return; }
+    const ef  = EF.transport[type];
+    const co2 = +(ef.factor * km).toFixed(3);
+    this._addEntry({ category: 'transport', subtype: type, label: ef.label, amount: km, unit: ef.unit, co2 });
+    document.getElementById('transport-km').value = '';
+  },
+
+  logFood() {
+    const type     = document.getElementById('food-type').value;
+    const servings = parseInt(document.getElementById('food-servings').value) || 1;
+    const ef  = EF.food[type];
+    const co2 = +(ef.factor * servings).toFixed(3);
+    this._addEntry({ category: 'food', subtype: type, label: ef.label, amount: servings, unit: ef.unit, co2 });
+    document.getElementById('food-servings').value = '1';
+  },
+
+  logEnergy() {
+    const type   = document.getElementById('energy-type').value;
+    const amount = parseFloat(document.getElementById('energy-amount').value);
+    if (!amount || amount <= 0) { this.notify('⚠️ Enter a valid amount.'); return; }
+    const ef  = EF.energy[type];
+    const co2 = +(ef.factor * amount).toFixed(3);
+    this._addEntry({ category: 'energy', subtype: type, label: ef.label, amount, unit: ef.unit, co2 });
+    document.getElementById('energy-amount').value = '';
+  },
+
+  logShopping() {
+    const type = document.getElementById('shopping-type').value;
+    const qty  = parseInt(document.getElementById('shopping-qty').value) || 1;
+    const ef   = EF.shopping[type];
+    const co2  = +(ef.factor * qty).toFixed(3);
+    this._addEntry({ category: 'shopping', subtype: type, label: ef.label, amount: qty, unit: ef.unit, co2 });
+    document.getElementById('shopping-qty').value = '1';
+  },
+
+  _addEntry(data) {
+    const entry = { ...data, id: Date.now() + Math.random(), timestamp: new Date().toISOString() };
+    DB.addLog(entry);
+    this.notify(`✅ Logged: ${data.label} — ${data.co2} kg CO₂e`);
+    this.render();
+  },
+
+  deleteEntry(id) {
+    DB.removeLog(id);
+    this.render();
+    this.notify('🗑 Entry removed.');
+  },
+
+  clearAll() {
+    if (!confirm('Clear all activity history? This cannot be undone.')) return;
+    DB.clearLogs();
+    this.render();
+    this.notify('History cleared.');
+  },
+
+  filterHistory(period) {
+    ['all','today','week'].forEach(f => {
+      document.getElementById('filter-' + f).classList.remove('btn-primary');
+      document.getElementById('filter-' + f).classList.add('btn-ghost');
+    });
+    document.getElementById('filter-' + period).classList.add('btn-primary');
+    document.getElementById('filter-' + period).classList.remove('btn-ghost');
+    this.renderHistory(period);
+  },
+
+  // --- CALCULATIONS ---
+  todayKey() { return new Date().toISOString().slice(0, 10); },
+
+  getLogsInRange(logs, days) {
+    const cutoff = Date.now() - days * 86400000;
+    return logs.filter(l => new Date(l.timestamp).getTime() >= cutoff);
+  },
+
+  sumCO2(logs) { return logs.reduce((s, l) => s + l.co2, 0); },
+
+  categoryBreakdown(logs) {
+    const cats = {};
+    logs.forEach(l => { cats[l.category] = (cats[l.category] || 0) + l.co2; });
+    return cats;
+  },
+
+  // --- RENDER MASTER ---
+  render() {
+    const logs = DB.getLogs();
+    const today = this.todayKey();
+    const todayLogs  = logs.filter(l => l.timestamp.slice(0,10) === today);
+    const weekLogs   = this.getLogsInRange(logs, 7);
+    const monthLogs  = this.getLogsInRange(logs, 30);
+
+    const todayCO2  = this.sumCO2(todayLogs);
+    const weekCO2   = this.sumCO2(weekLogs);
+    const monthCO2  = this.sumCO2(monthLogs);
+
+    // Extrapolate annual from 30-day
+    const annualEst = monthLogs.length > 0 ? (monthCO2 / 30) * 365 : 0;
+    const indiaAvg  = 1900; // kg/year
+
+    // Stats
+    document.getElementById('stat-today').textContent  = todayCO2.toFixed(1);
+    document.getElementById('stat-week').textContent   = weekCO2.toFixed(1);
+    document.getElementById('stat-month').textContent  = monthCO2.toFixed(1);
+
+    if (annualEst > 0) {
+      const pct = Math.round((annualEst / indiaAvg) * 100);
+      const el  = document.getElementById('stat-compare');
+      if (annualEst < indiaAvg) {
+        el.textContent = pct + '%'; el.className = 'value val-green';
+      } else {
+        el.textContent = '+' + Math.round(annualEst - indiaAvg) + 'kg'; el.className = 'value val-red';
+      }
+    }
+
+    this.renderGauge(todayCO2);
+    this.renderBreakdown(monthLogs);
+    this.renderBadges(logs);
+    this.renderHistory('all');
+    this.renderTips(monthLogs);
+    this.renderComparison(annualEst);
+    this.renderProfileStats(logs);
+
+    // Header total
+    document.getElementById('header-total').textContent = `Today: ${todayCO2.toFixed(1)} kg CO₂e`;
+  },
+
+  renderGauge(todayCO2) {
+    // Scale: 0 = 0kg, 100% = 20kg (very high daily)
+    const pct = Math.min(100, (todayCO2 / 20) * 100);
+    const bar = document.getElementById('gauge-bar');
+    bar.style.width = pct + '%';
+
+    let color, msg;
+    if (todayCO2 === 0)    { color = '#d0eedd'; msg = 'Log your first activity to see your rating.'; }
+    else if (todayCO2 < 5) { color = '#2d9e5f'; msg = `🌿 Great! ${todayCO2.toFixed(1)} kg today — well below average. Keep it up!`; }
+    else if (todayCO2 < 10){ color = '#f59e0b'; msg = `⚡ ${todayCO2.toFixed(1)} kg today — close to average. A few swaps can help.`; }
+    else                   { color = '#ef4444'; msg = `🔥 ${todayCO2.toFixed(1)} kg today — high. Check insights for ways to cut down.`; }
+
+    bar.style.background = color;
+    document.getElementById('gauge-verdict').textContent = msg;
+  },
+
+  renderBreakdown(logs) {
+    const wrap = document.getElementById('breakdown-wrap');
+    if (!logs.length) { wrap.innerHTML = '<div class="empty-state">No activity logged this month.</div>'; return; }
+    const cats  = this.categoryBreakdown(logs);
+    const total = this.sumCO2(logs);
+    const names = { transport: '🚗 Transport', food: '🍔 Food', energy: '⚡ Energy', shopping: '🛍 Shopping' };
+    wrap.innerHTML = Object.entries(cats).sort((a,b) => b[1]-a[1]).map(([cat, val]) => {
+      const pct = total > 0 ? (val / total) * 100 : 0;
+      return `<div class="breakdown-item">
+        <div class="breakdown-label">${names[cat] || cat}</div>
+        <div class="breakdown-bar-wrap"><div class="breakdown-bar" style="background:${CATEGORY_COLORS[cat]};width:${pct.toFixed(1)}%"></div></div>
+        <div class="breakdown-val">${val.toFixed(1)} kg</div>
+      </div>`;
+    }).join('');
+  },
+
+  renderBadges(logs) {
+    const totalCO2   = this.sumCO2(logs);
+    const totalLogs  = logs.length;
+    const walkLogs   = logs.filter(l => l.subtype === 'walk_cycle').length;
+    const veganLogs  = logs.filter(l => l.subtype === 'vegan').length;
+    const daysActive = new Set(logs.map(l => l.timestamp.slice(0,10))).size;
+
+    const badges = [
+      { id:'first_log',  icon:'🌱', label:'First Step',   earned: totalLogs >= 1,    tip: 'Log your first activity' },
+      { id:'week_streak',icon:'🔥', label:'7 Day Streak', earned: daysActive >= 7,   tip: '7 days of logging' },
+      { id:'eco_walker', icon:'🚶', label:'Eco Walker',   earned: walkLogs >= 5,     tip: '5+ walk/cycle logs' },
+      { id:'plant_power',icon:'🥗', label:'Plant Power',  earned: veganLogs >= 10,   tip: '10+ vegan meals' },
+      { id:'low_carbon', icon:'💚', label:'Low Carbon',   earned: totalCO2 < 50 && totalLogs > 5, tip: '<50 kg total CO₂' },
+      { id:'consistent', icon:'📅', label:'Consistent',   earned: daysActive >= 14,  tip: '14 days of logging' },
+    ];
+
+    document.getElementById('badge-grid').innerHTML = badges.map(b => `
+      <div class="badge ${b.earned ? 'earned' : ''}" title="${b.tip}" aria-label="${b.label} ${b.earned ? '(earned)' : '(not yet earned)'}">
+        <span class="badge-icon">${b.icon}</span>
+        <span>${b.label}</span>
+      </div>`).join('');
+  },
+
+  renderHistory(period) {
+    let logs = DB.getLogs();
+    if (period === 'today') logs = logs.filter(l => l.timestamp.slice(0,10) === this.todayKey());
+    if (period === 'week')  logs = this.getLogsInRange(logs, 7);
+
+    const list = document.getElementById('history-list');
+    if (!logs.length) {
+      list.innerHTML = '<div class="empty-state">No entries to show.</div>';
+      return;
+    }
+    list.innerHTML = logs.map(l => {
+      const d = new Date(l.timestamp);
+      const dateStr = d.toLocaleDateString('en-IN', { day:'numeric', month:'short' }) + ', ' + d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+      const catColor = CATEGORY_COLORS[l.category] || '#999';
+      return `<div class="log-item">
+        <div class="log-item-left">
+          <div class="log-item-name" style="color:${catColor}">${l.label}</div>
+          <div class="log-item-meta">${l.amount} ${l.unit} · ${dateStr}</div>
+        </div>
+        <div class="log-item-co2" style="color:${catColor}">${l.co2.toFixed(2)} kg</div>
+        <button class="delete-btn" onclick="App.deleteEntry(${l.id})" aria-label="Delete entry: ${l.label}">✕</button>
+      </div>`;
+    }).join('');
+  },
+
+  renderTips(logs) {
+    const grid = document.getElementById('tips-grid');
+    if (!logs.length) { grid.innerHTML = '<div class="empty-state">Log activities to get personalized tips.</div>'; return; }
+
+    const cats = this.categoryBreakdown(logs);
+    const tips = [];
+
+    if (cats.transport > 50)  tips.push({ urgency:'urgent',   icon:'🚌', title:'Switch to Public Transport', desc:'Your transport emissions are high. Taking the bus or metro even 3 days a week can cut transport CO₂ by 40%.', saving:'Save up to 600 kg CO₂/year' });
+    if (cats.transport > 20)  tips.push({ urgency:'moderate', icon:'🛵', title:'Combine Your Trips', desc:'Group your errands into a single trip. Multiple short trips emit 3× more than one planned trip.', saving:'Save 10-30% per trip' });
+    if (cats.food > 30)       tips.push({ urgency:'urgent',   icon:'🥗', title:'Try Meat-Free Mondays', desc:'Replacing beef meals with vegetarian options once a week can save ~340 kg CO₂ per year.', saving:'Save 340 kg CO₂/year' });
+    if (cats.food > 15)       tips.push({ urgency:'moderate', icon:'🫙', title:'Reduce Food Waste', desc:'30% of food produced globally is wasted. Plan meals and store food correctly.', saving:'Save up to 100 kg CO₂/year' });
+    if (cats.energy > 20)     tips.push({ urgency:'urgent',   icon:'❄️',  title:'Optimise AC Usage', desc:'Set AC to 24°C instead of 18°C. Each degree higher saves 6% electricity.', saving:'Save 150+ kg CO₂/year' });
+    if (cats.energy > 10)     tips.push({ urgency:'moderate', icon:'💡', title:'Switch to LED Lighting', desc:'LED bulbs use 75% less energy than incandescent. Simple and immediate impact.', saving:'Save 80 kg CO₂/year per home' });
+    if (cats.shopping > 15)   tips.push({ urgency:'moderate', icon:'♻️', title:'Buy Second-hand First', desc:'Manufacturing new clothes generates 10× more CO₂ than buying second-hand.', saving:'Save 10 kg per clothing item' });
+
+    // Always show a green tip
+    tips.push({ urgency:'green', icon:'🌳', title:'Plant Native Trees', desc:'A single tree absorbs ~21 kg of CO₂ per year. Connect with local NGOs for tree planting drives.', saving:'Absorb 21 kg CO₂/tree/year' });
+    tips.push({ urgency:'green', icon:'🚿', title:'Take Shorter Showers', desc:'A 2-minute shorter shower saves ~15 litres of water and reduces water heating energy.', saving:'Small but consistent savings' });
+
+    grid.innerHTML = tips.slice(0, 6).map(t => `
+      <div class="tip-card ${t.urgency}" role="article">
+        <div class="tip-icon" aria-hidden="true">${t.icon}</div>
+        <div class="tip-title">${t.title}</div>
+        <div class="tip-desc">${t.desc}</div>
+        <div class="tip-saving">💚 ${t.saving}</div>
+      </div>`).join('');
+  },
+
+  renderChart() {
+    const canvas = document.getElementById('trend-chart');
+    const ctx    = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // Build 7-day data
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      days.push(d.toISOString().slice(0,10));
+    }
+    const logs = DB.getLogs();
+    const data = days.map(d => {
+      const dayLogs = logs.filter(l => l.timestamp.slice(0,10) === d);
+      return this.sumCO2(dayLogs);
+    });
+    const labels = days.map(d => { const dt = new Date(d); return dt.toLocaleDateString('en-IN',{weekday:'short'}); });
+    const maxVal = Math.max(...data, 5);
+
+    const pad = { top: 20, right: 20, bottom: 40, left: 50 };
+    const cw   = W - pad.left - pad.right;
+    const ch   = H - pad.top  - pad.bottom;
+
+    // Grid
+    ctx.strokeStyle = '#d0eedd'; ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.top + (ch / 4) * i;
+      ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+      ctx.fillStyle = '#6b8f78'; ctx.font = '11px system-ui'; ctx.textAlign = 'right';
+      ctx.fillText((maxVal - (maxVal / 4) * i).toFixed(1), pad.left - 6, y + 4);
+    }
+
+    // Bars
+    const barW = cw / days.length * 0.6;
+    data.forEach((val, i) => {
+      const x  = pad.left + (cw / days.length) * i + (cw / days.length) * 0.2;
+      const bh = (val / maxVal) * ch;
+      const y  = pad.top + ch - bh;
+
+      // Gradient
+      const grad = ctx.createLinearGradient(0, y, 0, y + bh);
+      grad.addColorStop(0, '#2d9e5f');
+      grad.addColorStop(1, '#a8e6bf');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(x, y, barW, bh, [4,4,0,0]) : ctx.rect(x, y, barW, bh);
+      ctx.fill();
+
+      // Value label
+      if (val > 0) {
+        ctx.fillStyle = '#0f2e1a'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center';
+        ctx.fillText(val.toFixed(1), x + barW / 2, y - 6);
+      }
+
+      // Day label
+      ctx.fillStyle = '#6b8f78'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+      ctx.fillText(labels[i], x + barW / 2, H - pad.bottom + 16);
+    });
+
+    // Y-axis label
+    ctx.save(); ctx.translate(12, H / 2); ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#6b8f78'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('kg CO₂e', 0, 0); ctx.restore();
+  },
+
+  renderComparison(annualEst) {
+    const maxKg = 6000;
+    const pct   = Math.min(100, (annualEst / maxKg) * 100);
+    const bar   = document.getElementById('bar-you');
+    if (bar) { bar.style.width = pct + '%'; bar.style.background = annualEst < 1900 ? '#2d9e5f' : annualEst < 4700 ? '#f59e0b' : '#ef4444'; }
+    const valEl = document.getElementById('val-you');
+    if (valEl) valEl.textContent = annualEst > 0 ? (annualEst / 1000).toFixed(2) + ' t' : '—';
+  },
+
+  renderProfileStats(logs) {
+    const total   = this.sumCO2(logs);
+    const days    = new Set(logs.map(l => l.timestamp.slice(0,10))).size;
+    const cats    = this.categoryBreakdown(logs);
+    const topCat  = Object.entries(cats).sort((a,b)=>b[1]-a[1])[0];
+    const catName = topCat ? topCat[0] : 'N/A';
+
+    document.getElementById('profile-stats').innerHTML = `
+      <div><div style="font-size:.75rem;color:var(--text-soft);margin-bottom:.2rem">Total Logged</div><div style="font-weight:700;font-size:1.1rem">${total.toFixed(1)} kg CO₂e</div></div>
+      <div><div style="font-size:.75rem;color:var(--text-soft);margin-bottom:.2rem">Active Days</div><div style="font-weight:700;font-size:1.1rem">${days}</div></div>
+      <div><div style="font-size:.75rem;color:var(--text-soft);margin-bottom:.2rem">Entries</div><div style="font-weight:700;font-size:1.1rem">${logs.length}</div></div>
+      <div><div style="font-size:.75rem;color:var(--text-soft);margin-bottom:.2rem">Top Source</div><div style="font-weight:700;font-size:1.1rem;text-transform:capitalize">${catName}</div></div>
+    `;
+  },
+
+  // --- PROFILE ---
+  loadProfile() {
+    const p = DB.getProfile();
+    if (p.name)      document.getElementById('p-name').value      = p.name;
+    if (p.city)      document.getElementById('p-city').value      = p.city;
+    if (p.diet)      document.getElementById('p-diet').value      = p.diet;
+    if (p.transport) document.getElementById('p-transport').value = p.transport;
+    if (p.household) document.getElementById('p-household').value = p.household;
+    if (p.goal)      document.getElementById('p-goal').value      = p.goal;
+  },
+
+  saveProfile() {
+    const p = {
+      name:      document.getElementById('p-name').value,
+      city:      document.getElementById('p-city').value,
+      diet:      document.getElementById('p-diet').value,
+      transport: document.getElementById('p-transport').value,
+      household: document.getElementById('p-household').value,
+      goal:      document.getElementById('p-goal').value
+    };
+    DB.saveProfile(p);
+    this.notify('💾 Profile saved.');
+  },
+
+  notify(msg) {
+    const el = document.getElementById('notif');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => App.init());
+</script>
+</body>
+</html>
