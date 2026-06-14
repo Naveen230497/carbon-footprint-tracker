@@ -1,0 +1,24 @@
+{
+  "name": "carbon-footprint-tracker",
+  "version": "1.0.0",
+  "description": "EcoTrack — Carbon Footprint Awareness Platform. Track, understand, and reduce your personal carbon footprint through personalized insights.",
+  "main": "app.js",
+  "scripts": {
+    "test": "node tests/test.js",
+    "start": "echo Open index.html in your browser"
+  },
+  "keywords": [
+    "carbon-footprint",
+    "sustainability",
+    "environment",
+    "tracker",
+    "eco-friendly",
+    "climate-change"
+  ],
+  "author": "Naveen",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Naveen230497/carbon-footprint-tracker"
+  }
+}
