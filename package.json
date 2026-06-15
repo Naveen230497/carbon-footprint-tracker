@@ -1,16 +1,14 @@
 {
   "name": "carbon-footprint-tracker",
-  "version": "1.0.0",
-  "description": "EcoTrack — Carbon Footprint Awareness Platform. Track, understand, and reduce your personal carbon footprint through personalized insights.",
+  "version": "1.1.0",
+  "description": "A smart, dynamic assistant for carbon footprint tracking and logical decision making based on user context.",
   "main": "app.js",
   "scripts": {
-    "test": "node tests/test.js",
-    "start": "echo Open index.html in your browser"
+    "test": "node tests/test.js"
   },
   "keywords": [
-    "carbon-footprint",
-    "sustainability",
-    "environment",
+    "carbon",
+    "footprint",
     "tracker",
     "eco-friendly",
     "climate-change"

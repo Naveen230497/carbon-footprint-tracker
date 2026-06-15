@@ -1,346 +1,613 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EcoTrack — Carbon Footprint Tracker</title>
-  <meta name="description" content="Track, understand, and reduce your personal carbon footprint with personalized insights, daily action logging, and progress tracking." />
-  <meta name="author" content="Naveen" />
-  <meta name="theme-color" content="#0f2e1a" />
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EcoTrack — Carbon Footprint Tracker</title>
+    <meta
+      name="description"
+      content="A smart, dynamic assistant that helps individuals understand, track, and reduce their personal carbon footprint through logical decision making based on user context and practical real-world usability."
+    />
+    <meta name="author" content="Naveen" />
+    <meta name="theme-color" content="#0f2e1a" />
 
-  <!-- Security Headers -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; frame-ancestors 'none'; form-action 'self'; base-uri 'self';" />
-  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-  <meta http-equiv="X-Frame-Options" content="DENY" />
-  <meta name="referrer" content="no-referrer" />
+    <!-- Security Headers (OWASP Secure Headers Project) -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; upgrade-insecure-requests;"
+    />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Permissions-Policy"
+      content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()"
+    />
+    <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
+    <meta http-equiv="Cross-Origin-Resource-Policy" content="same-origin" />
 
-  <!-- Stylesheet -->
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
+    <!-- PWA Manifest & Icons -->
+    <link rel="manifest" href="manifest.json" />
+    <link
+      rel="apple-touch-icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>"
+    />
 
-  <!-- Accessibility: Skip Navigation Link -->
-  <a href="#main-content" class="skip-link" id="skip-nav">Skip to main content</a>
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker
+            .register('sw.js')
+            .catch((err) => console.error('Service Worker registration failed:', err));
+        });
+      }
+    </script>
 
-  <!-- ===== HEADER ===== -->
-  <header role="banner">
-    <div class="logo">
-      <span class="logo-icon" aria-hidden="true">🌱</span>
-      <span>EcoTrack</span>
-    </div>
-    <div class="header-meta">
-      <div class="date-display" id="header-date" aria-label="Current date"></div>
-      <div id="header-total" aria-live="polite">Loading...</div>
-    </div>
-  </header>
+    <!-- Accessibility: Skip Navigation Link -->
+    <a href="#main-content" class="skip-link" id="skip-nav">Skip to main content</a>
 
-  <!-- ===== NAVIGATION ===== -->
-  <nav role="navigation" aria-label="Main navigation">
-    <div class="tabs" role="tablist" aria-label="Application sections">
-      <button class="tab-btn active" data-tab="dashboard" aria-selected="true" role="tab" aria-controls="tab-dashboard" id="tab-btn-dashboard">📊 Dashboard</button>
-      <button class="tab-btn" data-tab="log" aria-selected="false" role="tab" aria-controls="tab-log" id="tab-btn-log">➕ Log Activity</button>
-      <button class="tab-btn" data-tab="insights" aria-selected="false" role="tab" aria-controls="tab-insights" id="tab-btn-insights">💡 Insights</button>
-      <button class="tab-btn" data-tab="history" aria-selected="false" role="tab" aria-controls="tab-history" id="tab-btn-history">📅 History</button>
-      <button class="tab-btn" data-tab="profile" aria-selected="false" role="tab" aria-controls="tab-profile" id="tab-btn-profile">👤 Profile</button>
-    </div>
-  </nav>
-
-  <!-- ===== MAIN CONTENT ===== -->
-  <main id="main-content" class="app-shell" role="main">
-
-    <!-- ===== DASHBOARD TAB ===== -->
-    <section class="section active" id="tab-dashboard" role="tabpanel" aria-labelledby="tab-btn-dashboard">
-      <h1 id="dashboard-heading" class="sr-only">Dashboard — Your Carbon Footprint Overview</h1>
-
-      <!-- Summary Statistics -->
-      <div class="summary-grid" role="region" aria-label="Summary statistics">
-        <div class="stat-card" id="card-today">
-          <div class="label">Today</div>
-          <div class="value val-green" id="stat-today" aria-live="polite">0.0</div>
-          <div class="unit">kg CO₂e</div>
-        </div>
-        <div class="stat-card" id="card-week">
-          <div class="label">This Week</div>
-          <div class="value val-blue" id="stat-week" aria-live="polite">0.0</div>
-          <div class="unit">kg CO₂e</div>
-        </div>
-        <div class="stat-card" id="card-month">
-          <div class="label">This Month</div>
-          <div class="value val-amber" id="stat-month" aria-live="polite">0.0</div>
-          <div class="unit">kg CO₂e</div>
-        </div>
-        <div class="stat-card" id="card-compare">
-          <div class="label">vs. India Avg</div>
-          <div class="value" id="stat-compare" aria-live="polite">—</div>
-          <div class="unit">annual basis</div>
-        </div>
+    <!-- ===== HEADER ===== -->
+    <header role="banner">
+      <div class="logo">
+        <span class="logo-icon" aria-hidden="true">🌱</span>
+        <span>EcoTrack</span>
       </div>
-
-      <!-- Footprint Gauge -->
-      <div class="gauge-wrap" role="region" aria-label="Footprint rating gauge">
-        <h2 id="gauge-heading">Your Footprint Rating</h2>
-        <div class="gauge-bar-bg" role="progressbar" aria-labelledby="gauge-heading" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" id="gauge-bar-container">
-          <div class="gauge-bar-fill" id="gauge-bar"></div>
-        </div>
-        <div class="gauge-labels" aria-hidden="true">
-          <span>Low 🌿</span>
-          <span>Average</span>
-          <span>High 🔥</span>
-        </div>
-        <div class="gauge-verdict" id="gauge-verdict" aria-live="polite">Log your first activity to see your rating.</div>
+      <div class="header-meta">
+        <div class="date-display" id="header-date" aria-label="Current date"></div>
+        <div id="header-total" aria-live="polite">Loading...</div>
       </div>
+    </header>
 
-      <!-- Category Breakdown -->
-      <div class="card" role="region" aria-label="Emission breakdown by category">
-        <h3>📂 Breakdown by Category</h3>
-        <div id="breakdown-wrap">
-          <div class="empty-state">No activity logged yet. Start tracking your footprint!</div>
-        </div>
+    <!-- ===== NAVIGATION ===== -->
+    <nav role="navigation" aria-label="Main navigation">
+      <div class="tabs" role="tablist" aria-label="Application sections">
+        <button
+          class="tab-btn active"
+          data-tab="dashboard"
+          aria-selected="true"
+          aria-current="page"
+          role="tab"
+          aria-controls="tab-dashboard"
+          id="tab-btn-dashboard"
+        >
+          📊 Dashboard
+        </button>
+        <button
+          class="tab-btn"
+          data-tab="log"
+          aria-selected="false"
+          role="tab"
+          aria-controls="tab-log"
+          id="tab-btn-log"
+        >
+          ➕ Log Activity
+        </button>
+        <button
+          class="tab-btn"
+          data-tab="insights"
+          aria-selected="false"
+          role="tab"
+          aria-controls="tab-insights"
+          id="tab-btn-insights"
+        >
+          💡 Insights
+        </button>
+        <button
+          class="tab-btn"
+          data-tab="history"
+          aria-selected="false"
+          role="tab"
+          aria-controls="tab-history"
+          id="tab-btn-history"
+        >
+          📅 History
+        </button>
+        <button
+          class="tab-btn"
+          data-tab="profile"
+          aria-selected="false"
+          role="tab"
+          aria-controls="tab-profile"
+          id="tab-btn-profile"
+        >
+          👤 Profile
+        </button>
       </div>
+    </nav>
 
-      <!-- Achievements -->
-      <div class="card" role="region" aria-label="Achievements and badges">
-        <h3>🏅 Achievements</h3>
-        <div class="badge-grid" id="badge-grid" role="list" aria-label="Badge list"></div>
-      </div>
-    </section>
+    <!-- ===== MAIN CONTENT ===== -->
+    <main id="main-content" class="app-shell" role="main">
+      <!-- ===== DASHBOARD TAB ===== -->
+      <section
+        class="section active"
+        id="tab-dashboard"
+        role="tabpanel"
+        aria-labelledby="tab-btn-dashboard"
+      >
+        <h1 id="dashboard-heading" class="sr-only">Dashboard — Your Carbon Footprint Overview</h1>
 
-    <!-- ===== LOG ACTIVITY TAB ===== -->
-    <section class="section" id="tab-log" role="tabpanel" aria-labelledby="tab-btn-log">
-      <h2 id="log-heading" style="font-size:1.15rem;font-weight:700;margin-bottom:1rem;color:var(--text-secondary)">Log an Activity</h2>
-
-      <!-- Transport Form -->
-      <div class="card" id="form-transport">
-        <h3>🚗 Transport</h3>
-        <form id="transport-form" novalidate aria-label="Log transport activity">
-          <div class="form-grid">
-            <div class="field">
-              <label for="transport-type">Vehicle Type</label>
-              <select id="transport-type" required>
-                <option value="car_petrol">Car (Petrol)</option>
-                <option value="car_diesel">Car (Diesel)</option>
-                <option value="car_electric">Car (Electric)</option>
-                <option value="motorcycle">Motorcycle</option>
-                <option value="bus">Bus</option>
-                <option value="train">Train / Metro</option>
-                <option value="auto_rickshaw">Auto Rickshaw</option>
-                <option value="walk_cycle">Walk / Cycle</option>
-                <option value="flight_short">Flight (Short-haul)</option>
-                <option value="flight_long">Flight (Long-haul)</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="transport-km">Distance (km)</label>
-              <input type="number" id="transport-km" min="0.1" max="50000" step="0.1" placeholder="e.g. 15" required aria-describedby="transport-hint" />
-              <div class="hint" id="transport-hint">Enter kilometers traveled (0.1–50,000)</div>
-            </div>
+        <!-- Summary Statistics -->
+        <div class="summary-grid" role="region" aria-label="Summary statistics">
+          <div class="stat-card" id="card-today">
+            <div class="label">Today</div>
+            <div class="value val-green" id="stat-today" aria-live="polite">0.0</div>
+            <div class="unit">kg CO₂e</div>
           </div>
-          <button type="submit" class="btn btn-primary" aria-label="Add transport activity">➕ Add Transport</button>
-        </form>
-      </div>
-
-      <!-- Food Form -->
-      <div class="card" id="form-food">
-        <h3>🍔 Food & Diet</h3>
-        <form id="food-form" novalidate aria-label="Log food activity">
-          <div class="form-grid">
-            <div class="field">
-              <label for="food-type">Meal Type</label>
-              <select id="food-type" required>
-                <option value="vegan">Vegan Meal</option>
-                <option value="vegetarian">Vegetarian Meal</option>
-                <option value="fish">Meal with Fish</option>
-                <option value="chicken">Meal with Chicken</option>
-                <option value="beef">Meal with Beef/Mutton</option>
-                <option value="dairy_heavy">Dairy-heavy Meal</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="food-servings">Number of Meals</label>
-              <input type="number" id="food-servings" min="1" max="20" step="1" value="1" required aria-describedby="food-hint" />
-              <div class="hint" id="food-hint">How many meals? (1–20)</div>
-            </div>
+          <div class="stat-card" id="card-week">
+            <div class="label">This Week</div>
+            <div class="value val-blue" id="stat-week" aria-live="polite">0.0</div>
+            <div class="unit">kg CO₂e</div>
           </div>
-          <button type="submit" class="btn btn-primary" aria-label="Add food activity">➕ Add Food</button>
-        </form>
-      </div>
-
-      <!-- Energy Form -->
-      <div class="card" id="form-energy">
-        <h3>⚡ Home Energy</h3>
-        <form id="energy-form" novalidate aria-label="Log energy activity">
-          <div class="form-grid">
-            <div class="field">
-              <label for="energy-type">Energy Type</label>
-              <select id="energy-type" required>
-                <option value="electricity_grid">Grid Electricity (India avg.)</option>
-                <option value="electricity_solar">Solar Electricity</option>
-                <option value="lpg">LPG Cooking Gas</option>
-                <option value="ac_1hr">Air Conditioning (per hour)</option>
-                <option value="washing_machine">Washing Machine (per load)</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="energy-amount">Amount</label>
-              <input type="number" id="energy-amount" min="0.1" max="1000" step="0.1" placeholder="e.g. 5" required aria-describedby="energy-hint" />
-              <div class="hint" id="energy-hint">kWh / kg / hours / loads (0.1–1,000)</div>
-            </div>
+          <div class="stat-card" id="card-month">
+            <div class="label">This Month</div>
+            <div class="value val-amber" id="stat-month" aria-live="polite">0.0</div>
+            <div class="unit">kg CO₂e</div>
           </div>
-          <button type="submit" class="btn btn-primary" aria-label="Add energy activity">➕ Add Energy</button>
-        </form>
-      </div>
-
-      <!-- Shopping Form -->
-      <div class="card" id="form-shopping">
-        <h3>🛍️ Shopping & Consumption</h3>
-        <form id="shopping-form" novalidate aria-label="Log shopping activity">
-          <div class="form-grid">
-            <div class="field">
-              <label for="shopping-type">Item Category</label>
-              <select id="shopping-type" required>
-                <option value="clothing">Clothing / Apparel</option>
-                <option value="electronics">Electronics</option>
-                <option value="plastic_bag">Plastic Bags (count)</option>
-                <option value="online_delivery">Online Delivery Package</option>
-                <option value="furniture">Furniture / Large Item</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="shopping-qty">Quantity</label>
-              <input type="number" id="shopping-qty" min="1" max="100" step="1" value="1" required aria-describedby="shopping-hint" />
-              <div class="hint" id="shopping-hint">Number of items (1–100)</div>
-            </div>
-          </div>
-          <button type="submit" class="btn btn-primary" aria-label="Add shopping activity">➕ Add Shopping</button>
-        </form>
-      </div>
-    </section>
-
-    <!-- ===== INSIGHTS TAB ===== -->
-    <section class="section" id="tab-insights" role="tabpanel" aria-labelledby="tab-btn-insights">
-      <h2 id="insights-heading" style="font-size:1.15rem;font-weight:700;margin-bottom:1rem;color:var(--text-secondary)">Smart Eco-Assistant</h2>
-
-      <div class="card" role="region" aria-label="7-day emission trend">
-        <h3>📈 7-Day Trend</h3>
-        <div class="chart-wrap">
-          <canvas id="trend-chart" width="800" height="260" aria-label="Bar chart showing daily carbon emissions over the past 7 days" role="img"></canvas>
-        </div>
-      </div>
-
-      <div class="card" role="region" aria-label="Personalized reduction tips">
-        <h3>💡 Reduction Tips — Tailored to You</h3>
-        <div class="tips-grid" id="tips-grid">
-          <div class="empty-state">Log activities to get personalized tips.</div>
-        </div>
-      </div>
-
-      <div class="card" role="region" aria-label="Global comparison">
-        <h3>🌍 How You Compare</h3>
-        <div id="comparison-section">
-          <div class="breakdown-item">
-            <div class="breakdown-label">You (annual)</div>
-            <div class="breakdown-bar-wrap"><div class="breakdown-bar" id="bar-you" style="background:var(--color-green-500);width:0%"></div></div>
-            <div class="breakdown-val" id="val-you">—</div>
-          </div>
-          <div class="breakdown-item">
-            <div class="breakdown-label">India avg.</div>
-            <div class="breakdown-bar-wrap"><div class="breakdown-bar" style="background:var(--color-amber);width:45%"></div></div>
-            <div class="breakdown-val">1.9 t</div>
-          </div>
-          <div class="breakdown-item">
-            <div class="breakdown-label">World avg.</div>
-            <div class="breakdown-bar-wrap"><div class="breakdown-bar" style="background:var(--color-red);width:80%"></div></div>
-            <div class="breakdown-val">4.7 t</div>
-          </div>
-          <div class="breakdown-item">
-            <div class="breakdown-label">Target 2050</div>
-            <div class="breakdown-bar-wrap"><div class="breakdown-bar" style="background:var(--color-green-400);width:15%"></div></div>
-            <div class="breakdown-val">0.7 t</div>
+          <div class="stat-card" id="card-compare">
+            <div class="label">vs. India Avg</div>
+            <div class="value" id="stat-compare" aria-live="polite">—</div>
+            <div class="unit">annual basis</div>
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- ===== HISTORY TAB ===== -->
-    <section class="section" id="tab-history" role="tabpanel" aria-labelledby="tab-btn-history">
-      <h2 id="history-heading" style="font-size:1.15rem;font-weight:700;margin-bottom:1rem;color:var(--text-secondary)">Activity History</h2>
-
-      <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;" role="toolbar" aria-label="History filters">
-        <button class="btn btn-ghost btn-sm" data-filter="all" id="filter-all" aria-pressed="true">All Time</button>
-        <button class="btn btn-ghost btn-sm" data-filter="today" id="filter-today" aria-pressed="false">Today</button>
-        <button class="btn btn-ghost btn-sm" data-filter="week" id="filter-week" aria-pressed="false">This Week</button>
-        <button class="btn btn-danger btn-sm" id="clear-all-btn" style="margin-left:auto" aria-label="Clear all activity history">🗑 Clear All</button>
-      </div>
-
-      <div class="card">
-        <div id="history-list" class="log-list" role="list" aria-label="Activity log entries">
-          <div class="empty-state">No activities logged yet. Start by logging an activity!</div>
+        <!-- Footprint Gauge -->
+        <div class="gauge-wrap" role="region" aria-label="Footprint rating gauge">
+          <h2 id="gauge-heading">Your Footprint Rating</h2>
+          <div
+            class="gauge-bar-bg"
+            role="progressbar"
+            aria-labelledby="gauge-heading"
+            aria-valuenow="0"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            id="gauge-bar-container"
+          >
+            <div class="gauge-bar-fill" id="gauge-bar"></div>
+          </div>
+          <div class="gauge-labels" aria-hidden="true">
+            <span>Low 🌿</span>
+            <span>Average</span>
+            <span>High 🔥</span>
+          </div>
+          <div class="gauge-verdict" id="gauge-verdict" aria-live="polite">
+            Log your first activity to see your rating.
+          </div>
         </div>
-      </div>
-    </section>
 
-    <!-- ===== PROFILE TAB ===== -->
-    <section class="section" id="tab-profile" role="tabpanel" aria-labelledby="tab-btn-profile">
-      <h2 id="profile-heading" style="font-size:1.15rem;font-weight:700;margin-bottom:1rem;color:var(--text-secondary)">Your Profile</h2>
+        <!-- Category Breakdown -->
+        <div class="card" role="region" aria-label="Emission breakdown by category">
+          <h3>📂 Breakdown by Category</h3>
+          <div id="breakdown-wrap">
+            <div class="empty-state">No activity logged yet. Start tracking your footprint!</div>
+          </div>
+        </div>
 
-      <div class="card">
-        <h3>👤 Personal Details</h3>
-        <div class="profile-hint">Your profile helps EcoTrack personalize reduction tips and context for your lifestyle.</div>
-        <form id="profile-form" novalidate aria-label="Profile settings">
-          <div class="profile-form">
-            <div class="field">
-              <label for="p-name">Name</label>
-              <input type="text" id="p-name" placeholder="Your name" autocomplete="given-name" maxlength="100" />
+        <!-- Achievements -->
+        <div class="card" role="region" aria-label="Achievements and badges">
+          <h3>🏅 Achievements</h3>
+          <div class="badge-grid" id="badge-grid" role="list" aria-label="Badge list"></div>
+        </div>
+      </section>
+
+      <!-- ===== LOG ACTIVITY TAB ===== -->
+      <section class="section" id="tab-log" role="tabpanel" aria-labelledby="tab-btn-log">
+        <h2
+          id="log-heading"
+          style="
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+          "
+        >
+          Log an Activity
+        </h2>
+
+        <!-- Transport Form -->
+        <div class="card" id="form-transport">
+          <h3>🚗 Transport</h3>
+          <form id="transport-form" novalidate aria-label="Log transport activity">
+            <div class="form-grid">
+              <div class="field">
+                <label for="transport-type">Vehicle Type</label>
+                <select id="transport-type" required>
+                  <option value="car_petrol">Car (Petrol)</option>
+                  <option value="car_diesel">Car (Diesel)</option>
+                  <option value="car_electric">Car (Electric)</option>
+                  <option value="motorcycle">Motorcycle</option>
+                  <option value="bus">Bus</option>
+                  <option value="train">Train / Metro</option>
+                  <option value="auto_rickshaw">Auto Rickshaw</option>
+                  <option value="walk_cycle">Walk / Cycle</option>
+                  <option value="flight_short">Flight (Short-haul)</option>
+                  <option value="flight_long">Flight (Long-haul)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="transport-km">Distance (km)</label>
+                <input
+                  type="number"
+                  id="transport-km"
+                  min="0.1"
+                  max="50000"
+                  step="0.1"
+                  placeholder="e.g. 15"
+                  required
+                  aria-describedby="transport-hint"
+                  inputmode="decimal"
+                  autocomplete="off"
+                />
+                <div class="hint" id="transport-hint">Enter kilometers traveled (0.1–50,000)</div>
+              </div>
             </div>
-            <div class="field">
-              <label for="p-city">City</label>
-              <input type="text" id="p-city" placeholder="e.g. Mumbai" maxlength="100" />
+            <button type="submit" class="btn btn-primary" aria-label="Add transport activity">
+              ➕ Add Transport
+            </button>
+          </form>
+        </div>
+
+        <!-- Food Form -->
+        <div class="card" id="form-food">
+          <h3>🍔 Food & Diet</h3>
+          <form id="food-form" novalidate aria-label="Log food activity">
+            <div class="form-grid">
+              <div class="field">
+                <label for="food-type">Meal Type</label>
+                <select id="food-type" required>
+                  <option value="vegan">Vegan Meal</option>
+                  <option value="vegetarian">Vegetarian Meal</option>
+                  <option value="fish">Meal with Fish</option>
+                  <option value="chicken">Meal with Chicken</option>
+                  <option value="beef">Meal with Beef/Mutton</option>
+                  <option value="dairy_heavy">Dairy-heavy Meal</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="food-servings">Number of Meals</label>
+                <input
+                  type="number"
+                  id="food-servings"
+                  min="1"
+                  max="20"
+                  step="1"
+                  value="1"
+                  required
+                  aria-describedby="food-hint"
+                  inputmode="numeric"
+                  autocomplete="off"
+                />
+                <div class="hint" id="food-hint">How many meals? (1–20)</div>
+              </div>
             </div>
-            <div class="field">
-              <label for="p-diet">Primary Diet</label>
-              <select id="p-diet">
-                <option value="vegan">Vegan</option>
-                <option value="vegetarian" selected>Vegetarian</option>
-                <option value="omnivore">Omnivore</option>
-                <option value="heavy_meat">Heavy Meat Eater</option>
-              </select>
+            <button type="submit" class="btn btn-primary" aria-label="Add food activity">
+              ➕ Add Food
+            </button>
+          </form>
+        </div>
+
+        <!-- Energy Form -->
+        <div class="card" id="form-energy">
+          <h3>⚡ Home Energy</h3>
+          <form id="energy-form" novalidate aria-label="Log energy activity">
+            <div class="form-grid">
+              <div class="field">
+                <label for="energy-type">Energy Type</label>
+                <select id="energy-type" required>
+                  <option value="electricity_grid">Grid Electricity (India avg.)</option>
+                  <option value="electricity_solar">Solar Electricity</option>
+                  <option value="lpg">LPG Cooking Gas</option>
+                  <option value="ac_1hr">Air Conditioning (per hour)</option>
+                  <option value="washing_machine">Washing Machine (per load)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="energy-amount">Amount</label>
+                <input
+                  type="number"
+                  id="energy-amount"
+                  min="0.1"
+                  max="1000"
+                  step="0.1"
+                  placeholder="e.g. 5"
+                  required
+                  aria-describedby="energy-hint"
+                  inputmode="decimal"
+                  autocomplete="off"
+                />
+                <div class="hint" id="energy-hint">kWh / kg / hours / loads (0.1–1,000)</div>
+              </div>
             </div>
-            <div class="field">
-              <label for="p-transport">Primary Transport</label>
-              <select id="p-transport">
-                <option value="walk_cycle">Walk / Cycle</option>
-                <option value="public">Public Transport</option>
-                <option value="car_petrol" selected>Car (Petrol)</option>
-                <option value="car_electric">Car (Electric)</option>
-              </select>
+            <button type="submit" class="btn btn-primary" aria-label="Add energy activity">
+              ➕ Add Energy
+            </button>
+          </form>
+        </div>
+
+        <!-- Shopping Form -->
+        <div class="card" id="form-shopping">
+          <h3>🛍️ Shopping & Consumption</h3>
+          <form id="shopping-form" novalidate aria-label="Log shopping activity">
+            <div class="form-grid">
+              <div class="field">
+                <label for="shopping-type">Item Category</label>
+                <select id="shopping-type" required>
+                  <option value="clothing">Clothing / Apparel</option>
+                  <option value="electronics">Electronics</option>
+                  <option value="plastic_bag">Plastic Bags (count)</option>
+                  <option value="online_delivery">Online Delivery Package</option>
+                  <option value="furniture">Furniture / Large Item</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="shopping-qty">Quantity</label>
+                <input
+                  type="number"
+                  id="shopping-qty"
+                  min="1"
+                  max="100"
+                  step="1"
+                  value="1"
+                  required
+                  aria-describedby="shopping-hint"
+                  inputmode="numeric"
+                  autocomplete="off"
+                />
+                <div class="hint" id="shopping-hint">Number of items (1–100)</div>
+              </div>
             </div>
-            <div class="field">
-              <label for="p-household">Household Size</label>
-              <input type="number" id="p-household" min="1" max="20" value="3" aria-describedby="household-hint" />
-              <div class="hint" id="household-hint">Number of people (1–20)</div>
+            <button type="submit" class="btn btn-primary" aria-label="Add shopping activity">
+              ➕ Add Shopping
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <!-- ===== INSIGHTS TAB ===== -->
+      <section class="section" id="tab-insights" role="tabpanel" aria-labelledby="tab-btn-insights">
+        <h2
+          id="insights-heading"
+          style="
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+          "
+        >
+          Smart Eco-Assistant
+        </h2>
+
+        <div class="card" role="region" aria-label="7-day emission trend">
+          <h3>📈 7-Day Trend</h3>
+          <div class="chart-wrap">
+            <canvas
+              id="trend-chart"
+              width="800"
+              height="260"
+              aria-label="Bar chart showing daily carbon emissions over the past 7 days"
+              role="img"
+            ></canvas>
+          </div>
+        </div>
+
+        <div class="card" role="region" aria-label="Personalized reduction tips">
+          <h3>💡 Reduction Tips — Tailored to You</h3>
+          <div class="tips-grid" id="tips-grid">
+            <div class="empty-state">Log activities to get personalized tips.</div>
+          </div>
+        </div>
+
+        <div class="card" role="region" aria-label="Global comparison">
+          <h3>🌍 How You Compare</h3>
+          <div id="comparison-section">
+            <div class="breakdown-item">
+              <div class="breakdown-label">You (annual)</div>
+              <div class="breakdown-bar-wrap">
+                <div
+                  class="breakdown-bar"
+                  id="bar-you"
+                  style="background: var(--color-green-500); width: 0%"
+                ></div>
+              </div>
+              <div class="breakdown-val" id="val-you">—</div>
             </div>
-            <div class="field">
-              <label for="p-goal">Monthly CO₂ Goal (kg)</label>
-              <input type="number" id="p-goal" min="10" max="5000" step="10" placeholder="e.g. 150" aria-describedby="goal-hint" />
-              <div class="hint" id="goal-hint">Leave blank for auto-target</div>
+            <div class="breakdown-item">
+              <div class="breakdown-label">India avg.</div>
+              <div class="breakdown-bar-wrap">
+                <div class="breakdown-bar" style="background: var(--color-amber); width: 45%"></div>
+              </div>
+              <div class="breakdown-val">1.9 t</div>
+            </div>
+            <div class="breakdown-item">
+              <div class="breakdown-label">World avg.</div>
+              <div class="breakdown-bar-wrap">
+                <div class="breakdown-bar" style="background: var(--color-red); width: 80%"></div>
+              </div>
+              <div class="breakdown-val">4.7 t</div>
+            </div>
+            <div class="breakdown-item">
+              <div class="breakdown-label">Target 2050</div>
+              <div class="breakdown-bar-wrap">
+                <div
+                  class="breakdown-bar"
+                  style="background: var(--color-green-400); width: 15%"
+                ></div>
+              </div>
+              <div class="breakdown-val">0.7 t</div>
             </div>
           </div>
-          <button type="submit" class="btn btn-primary" style="margin-top:1rem" aria-label="Save profile settings">💾 Save Profile</button>
-        </form>
-      </div>
+        </div>
+      </section>
 
-      <div class="card" role="region" aria-label="All-time statistics">
-        <h3>📊 All-time Stats</h3>
-        <div id="profile-stats" style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;font-size:0.9rem;" aria-live="polite"></div>
-      </div>
-    </section>
+      <!-- ===== HISTORY TAB ===== -->
+      <section class="section" id="tab-history" role="tabpanel" aria-labelledby="tab-btn-history">
+        <h2
+          id="history-heading"
+          style="
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+          "
+        >
+          Activity History
+        </h2>
 
-  </main>
+        <div
+          style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap"
+          role="toolbar"
+          aria-label="History filters"
+        >
+          <button
+            class="btn btn-ghost btn-sm"
+            data-filter="all"
+            id="filter-all"
+            aria-pressed="true"
+          >
+            All Time
+          </button>
+          <button
+            class="btn btn-ghost btn-sm"
+            data-filter="today"
+            id="filter-today"
+            aria-pressed="false"
+          >
+            Today
+          </button>
+          <button
+            class="btn btn-ghost btn-sm"
+            data-filter="week"
+            id="filter-week"
+            aria-pressed="false"
+          >
+            This Week
+          </button>
+          <button
+            class="btn btn-danger btn-sm"
+            id="clear-all-btn"
+            style="margin-left: auto"
+            aria-label="Clear all activity history"
+          >
+            🗑 Clear All
+          </button>
+        </div>
 
-  <!-- Notification Toast -->
-  <div class="notif" id="notif" role="status" aria-live="polite" aria-atomic="true"></div>
+        <div class="card">
+          <div id="history-list" class="log-list" role="list" aria-label="Activity log entries">
+            <div class="empty-state">No activities logged yet. Start by logging an activity!</div>
+          </div>
+        </div>
+      </section>
 
-  <!-- Application Script (external for code quality) -->
-  <script src="app.js"></script>
-</body>
+      <!-- ===== PROFILE TAB ===== -->
+      <section class="section" id="tab-profile" role="tabpanel" aria-labelledby="tab-btn-profile">
+        <h2
+          id="profile-heading"
+          style="
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+          "
+        >
+          Your Profile
+        </h2>
+
+        <div class="card">
+          <h3>👤 Personal Details</h3>
+          <div class="profile-hint">
+            Your profile helps EcoTrack personalize reduction tips and context for your lifestyle.
+          </div>
+          <form id="profile-form" novalidate aria-label="Profile settings">
+            <div class="profile-form">
+              <div class="field">
+                <label for="p-name">Name</label>
+                <input
+                  type="text"
+                  id="p-name"
+                  placeholder="Your name"
+                  autocomplete="given-name"
+                  maxlength="100"
+                />
+              </div>
+              <div class="field">
+                <label for="p-city">City</label>
+                <input type="text" id="p-city" placeholder="e.g. Mumbai" maxlength="100" />
+              </div>
+              <div class="field">
+                <label for="p-diet">Primary Diet</label>
+                <select id="p-diet">
+                  <option value="vegan">Vegan</option>
+                  <option value="vegetarian" selected>Vegetarian</option>
+                  <option value="omnivore">Omnivore</option>
+                  <option value="heavy_meat">Heavy Meat Eater</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="p-transport">Primary Transport</label>
+                <select id="p-transport">
+                  <option value="walk_cycle">Walk / Cycle</option>
+                  <option value="public">Public Transport</option>
+                  <option value="car_petrol" selected>Car (Petrol)</option>
+                  <option value="car_electric">Car (Electric)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="p-household">Household Size</label>
+                <input
+                  type="number"
+                  id="p-household"
+                  min="1"
+                  max="20"
+                  value="3"
+                  aria-describedby="household-hint"
+                />
+                <div class="hint" id="household-hint">Number of people (1–20)</div>
+              </div>
+              <div class="field">
+                <label for="p-goal">Monthly CO₂ Goal (kg)</label>
+                <input
+                  type="number"
+                  id="p-goal"
+                  min="10"
+                  max="5000"
+                  step="10"
+                  placeholder="e.g. 150"
+                  aria-describedby="goal-hint"
+                />
+                <div class="hint" id="goal-hint">Leave blank for auto-target</div>
+              </div>
+            </div>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              style="margin-top: 1rem"
+              aria-label="Save profile settings"
+            >
+              💾 Save Profile
+            </button>
+          </form>
+        </div>
+
+        <div class="card" role="region" aria-label="All-time statistics">
+          <h3>📊 All-time Stats</h3>
+          <div
+            id="profile-stats"
+            style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.9rem"
+            aria-live="polite"
+          ></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Notification Toast -->
+    <div class="notif" id="notif" role="status" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Application Script (external for code quality) -->
+    <script src="app.js"></script>
+  </body>
 </html>

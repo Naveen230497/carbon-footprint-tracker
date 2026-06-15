@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://Naveen230497.github.io/carbon-footprint-tracker/sitemap.xml

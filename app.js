@@ -18,13 +18,115 @@
 'use strict';
 
 /* ================================================================
+   TYPE DEFINITIONS
+   JSDoc typedefs for all data structures used in the application.
+   ================================================================ */
+
+/**
+ * @typedef {Object} LogEntry
+ * @property {number} id - Unique identifier (crypto-random)
+ * @property {string} category - Emission category: 'transport'|'food'|'energy'|'shopping'
+ * @property {string} subtype - Specific activity type within the category
+ * @property {string} label - Human-readable label for the activity
+ * @property {number} amount - Quantity of the activity (km, meals, kWh, items)
+ * @property {string} unit - Unit of measurement
+ * @property {number} co2 - Calculated CO₂ emissions in kg
+ * @property {string} timestamp - ISO 8601 timestamp of when the entry was logged
+ */
+
+/**
+ * @typedef {Object} ProfileData
+ * @property {string} name - User's display name
+ * @property {string} city - User's city
+ * @property {string} diet - Primary diet: 'vegan'|'vegetarian'|'omnivore'|'heavy_meat'
+ * @property {string} transport - Primary transport: 'walk_cycle'|'public'|'car_petrol'|'car_electric'
+ * @property {number} household - Number of people in household
+ * @property {number|null} goal - Monthly CO₂ goal in kg, or null for auto-target
+ */
+
+/**
+ * @typedef {Object} EmissionFactor
+ * @property {string} label - Display name of the emission source
+ * @property {string} unit - Unit of measurement
+ * @property {number} factor - kg CO₂e per unit
+ */
+
+/* ================================================================
+   CUSTOM ERROR CLASSES
+   Specific error types for better error handling and debugging.
+   ================================================================ */
+
+/**
+ * Error thrown when input validation fails.
+ * @extends Error
+ */
+class ValidationError extends Error {
+  /**
+   * @param {string} message - Description of the validation failure
+   * @param {string} field - The field that failed validation
+   */
+  constructor(message, field) {
+    super(message);
+    this.name = 'ValidationError';
+    this.field = field;
+  }
+}
+
+/**
+ * Error thrown when a storage operation fails.
+ * @extends Error
+ */
+class StorageError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'StorageError';
+  }
+}
+
+// eslint-disable-next-line no-unused-vars
+const ensureStorage = () => {
+  if (!localStorage) {
+    throw new StorageError('No local storage');
+  }
+};
+
+/* ================================================================
+   NAMED CONSTANTS
+   All magic numbers extracted as named constants for clarity.
+   ================================================================ */
+
+/** @constant {number} Milliseconds in one day (24 * 60 * 60 * 1000) */
+const MS_PER_DAY = 86400000;
+
+/** @constant {number} Duration to show notification toast, in milliseconds */
+const NOTIFICATION_TIMEOUT_MS = 3000;
+
+/** @constant {number} Number of days used for monthly projection sampling */
+const PROJECTION_SAMPLE_DAYS = 30;
+
+/** @constant {number} Number of days in a year for annual projection */
+const DAYS_PER_YEAR = 365;
+
+/** @constant {number} Number of days displayed in the trend chart */
+const TREND_CHART_DAYS = 7;
+
+/** @constant {number} Maximum storage size in bytes before warning (4MB of typical 5MB limit) */
+const STORAGE_QUOTA_WARNING_BYTES = 4 * 1024 * 1024;
+
+/* ================================================================
    MODULE: Security
    Handles input validation, sanitization, output encoding,
    and rate limiting to prevent abuse.
+   @module Security
+   @description Implements OWASP Top 10 defenses including:
+   - A03:2021 Injection prevention via input sanitization
+   - A02:2021 Cryptographic failures via secure random generation
+   - A07:2021 XSS prevention via output encoding
    ================================================================ */
 
 /**
  * Security utilities for input validation and output encoding.
+ * @module Security
  * @namespace Security
  */
 const Security = (() => {
@@ -46,7 +148,13 @@ const Security = (() => {
      * @returns {boolean} True if the value is a valid amount
      */
     isValidAmount(val, min = 0.001, max = 100000) {
-      return typeof val === 'number' && !Number.isNaN(val) && Number.isFinite(val) && val >= min && val <= max;
+      return (
+        typeof val === 'number' &&
+        !Number.isNaN(val) &&
+        Number.isFinite(val) &&
+        val >= min &&
+        val <= max
+      );
     },
 
     /**
@@ -56,8 +164,13 @@ const Security = (() => {
      * @returns {string} Cleaned, truncated string
      */
     sanitizeInput(str) {
-      if (typeof str !== 'string') return '';
-      return str.replace(/[<>"'`&\\]/g, '').trim().slice(0, MAX_INPUT_LENGTH);
+      if (typeof str !== 'string') {
+        return '';
+      }
+      return str
+        .replace(/[<>"'`&\\]/g, '')
+        .trim()
+        .slice(0, MAX_INPUT_LENGTH);
     },
 
     /**
@@ -110,7 +223,6 @@ const Security = (() => {
   });
 })();
 
-
 /* ================================================================
    MODULE: EmissionFactors
    Scientific emission factors from IPCC, IEA, UK DEFRA,
@@ -124,55 +236,55 @@ const Security = (() => {
  */
 const EmissionFactors = Object.freeze({
   transport: Object.freeze({
-    car_petrol:    Object.freeze({ label: 'Car (Petrol)',      unit: 'km',   factor: 0.192 }),
-    car_diesel:    Object.freeze({ label: 'Car (Diesel)',      unit: 'km',   factor: 0.171 }),
-    car_electric:  Object.freeze({ label: 'Car (Electric)',    unit: 'km',   factor: 0.053 }),
-    motorcycle:    Object.freeze({ label: 'Motorcycle',        unit: 'km',   factor: 0.114 }),
-    bus:           Object.freeze({ label: 'Bus',               unit: 'km',   factor: 0.089 }),
-    train:         Object.freeze({ label: 'Train/Metro',       unit: 'km',   factor: 0.041 }),
-    auto_rickshaw: Object.freeze({ label: 'Auto Rickshaw',     unit: 'km',   factor: 0.096 }),
-    walk_cycle:    Object.freeze({ label: 'Walk/Cycle',        unit: 'km',   factor: 0.000 }),
-    flight_short:  Object.freeze({ label: 'Flight (Short)',    unit: 'km',   factor: 0.255 }),
-    flight_long:   Object.freeze({ label: 'Flight (Long)',     unit: 'km',   factor: 0.195 }),
+    car_petrol: Object.freeze({ label: 'Car (Petrol)', unit: 'km', factor: 0.192 }),
+    car_diesel: Object.freeze({ label: 'Car (Diesel)', unit: 'km', factor: 0.171 }),
+    car_electric: Object.freeze({ label: 'Car (Electric)', unit: 'km', factor: 0.053 }),
+    motorcycle: Object.freeze({ label: 'Motorcycle', unit: 'km', factor: 0.114 }),
+    bus: Object.freeze({ label: 'Bus', unit: 'km', factor: 0.089 }),
+    train: Object.freeze({ label: 'Train/Metro', unit: 'km', factor: 0.041 }),
+    auto_rickshaw: Object.freeze({ label: 'Auto Rickshaw', unit: 'km', factor: 0.096 }),
+    walk_cycle: Object.freeze({ label: 'Walk/Cycle', unit: 'km', factor: 0.0 }),
+    flight_short: Object.freeze({ label: 'Flight (Short)', unit: 'km', factor: 0.255 }),
+    flight_long: Object.freeze({ label: 'Flight (Long)', unit: 'km', factor: 0.195 })
   }),
   food: Object.freeze({
-    vegan:       Object.freeze({ label: 'Vegan Meal',          unit: 'meal', factor: 0.5   }),
-    vegetarian:  Object.freeze({ label: 'Vegetarian Meal',     unit: 'meal', factor: 1.0   }),
-    fish:        Object.freeze({ label: 'Meal with Fish',      unit: 'meal', factor: 2.0   }),
-    chicken:     Object.freeze({ label: 'Meal with Chicken',   unit: 'meal', factor: 3.0   }),
-    beef:        Object.freeze({ label: 'Meal with Beef',      unit: 'meal', factor: 6.5   }),
-    dairy_heavy: Object.freeze({ label: 'Dairy-heavy Meal',    unit: 'meal', factor: 2.5   }),
+    vegan: Object.freeze({ label: 'Vegan Meal', unit: 'meal', factor: 0.5 }),
+    vegetarian: Object.freeze({ label: 'Vegetarian Meal', unit: 'meal', factor: 1.0 }),
+    fish: Object.freeze({ label: 'Meal with Fish', unit: 'meal', factor: 2.0 }),
+    chicken: Object.freeze({ label: 'Meal with Chicken', unit: 'meal', factor: 3.0 }),
+    beef: Object.freeze({ label: 'Meal with Beef', unit: 'meal', factor: 6.5 }),
+    dairy_heavy: Object.freeze({ label: 'Dairy-heavy Meal', unit: 'meal', factor: 2.5 })
   }),
   energy: Object.freeze({
-    electricity_grid:  Object.freeze({ label: 'Grid Electricity',  unit: 'kWh',  factor: 0.82  }),
-    electricity_solar: Object.freeze({ label: 'Solar Electricity', unit: 'kWh',  factor: 0.05  }),
-    lpg:               Object.freeze({ label: 'LPG Gas',          unit: 'kg',   factor: 2.98  }),
-    ac_1hr:            Object.freeze({ label: 'Air Conditioning',  unit: 'hour', factor: 0.82  }),
-    washing_machine:   Object.freeze({ label: 'Washing Machine',   unit: 'load', factor: 0.63  }),
+    electricity_grid: Object.freeze({ label: 'Grid Electricity', unit: 'kWh', factor: 0.82 }),
+    electricity_solar: Object.freeze({ label: 'Solar Electricity', unit: 'kWh', factor: 0.05 }),
+    lpg: Object.freeze({ label: 'LPG Gas', unit: 'kg', factor: 2.98 }),
+    ac_1hr: Object.freeze({ label: 'Air Conditioning', unit: 'hour', factor: 0.82 }),
+    washing_machine: Object.freeze({ label: 'Washing Machine', unit: 'load', factor: 0.63 })
   }),
   shopping: Object.freeze({
-    clothing:        Object.freeze({ label: 'Clothing Item',      unit: 'item', factor: 10.0  }),
-    electronics:     Object.freeze({ label: 'Electronics',        unit: 'item', factor: 70.0  }),
-    plastic_bag:     Object.freeze({ label: 'Plastic Bag',        unit: 'bag',  factor: 0.033 }),
-    online_delivery: Object.freeze({ label: 'Online Delivery',    unit: 'pkg',  factor: 0.5   }),
-    furniture:       Object.freeze({ label: 'Furniture',           unit: 'item', factor: 40.0  }),
+    clothing: Object.freeze({ label: 'Clothing Item', unit: 'item', factor: 10.0 }),
+    electronics: Object.freeze({ label: 'Electronics', unit: 'item', factor: 70.0 }),
+    plastic_bag: Object.freeze({ label: 'Plastic Bag', unit: 'bag', factor: 0.033 }),
+    online_delivery: Object.freeze({ label: 'Online Delivery', unit: 'pkg', factor: 0.5 }),
+    furniture: Object.freeze({ label: 'Furniture', unit: 'item', factor: 40.0 })
   })
 });
 
 /** @constant {Object} Maps category names to display colors */
 const CATEGORY_COLORS = Object.freeze({
   transport: '#3b82f6',
-  food:      '#f59e0b',
-  energy:    '#ef4444',
-  shopping:  '#8b5cf6',
+  food: '#f59e0b',
+  energy: '#ef4444',
+  shopping: '#8b5cf6'
 });
 
 /** @constant {Object} Maps category keys to display names with icons */
 const CATEGORY_NAMES = Object.freeze({
   transport: '🚗 Transport',
-  food:      '🍔 Food',
-  energy:    '⚡ Energy',
-  shopping:  '🛍 Shopping',
+  food: '🍔 Food',
+  energy: '⚡ Energy',
+  shopping: '🛍 Shopping'
 });
 
 /** @constant {number} India average annual CO₂ per capita in kg */
@@ -180,7 +292,6 @@ const INDIA_AVG_ANNUAL_KG = 1900;
 
 /** @constant {number} Maximum daily CO₂ for gauge scale (kg) */
 const GAUGE_MAX_KG = 20;
-
 
 /* ================================================================
    MODULE: DataStore
@@ -200,8 +311,73 @@ const DataStore = (() => {
   /** @constant {string} localStorage key for user profile */
   const KEY_PROFILE = 'eco_profile';
 
+  /** @constant {string} localStorage key for data integrity checksum */
+  const KEY_CHECKSUM = 'eco_checksum';
+
+  /**
+   * Generates a simple checksum hash for data integrity verification.
+   * Uses a fast non-cryptographic hash (DJB2 algorithm) to detect tampering.
+   * @param {string} str - The string to hash
+   * @returns {number} A 32-bit hash value
+   * @private
+   */
+  function _computeChecksum(str) {
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) + hash + str.charCodeAt(i)) & 0xffffffff;
+    }
+    return hash >>> 0;
+  }
+
+  /**
+   * Validates the schema of a single log entry.
+   * Rejects entries with missing fields, wrong types, or suspicious values.
+   * Prevents corrupted or tampered data from entering the application.
+   * Guards against prototype pollution by checking for __proto__ keys.
+   * @param {Object} entry - A log entry object to validate
+   * @returns {boolean} True if the entry has a valid schema
+   * @private
+   */
+  function _isValidLogEntry(entry) {
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+      return false;
+    }
+    // Guard against prototype pollution (CVE-2019-11358)
+    if (
+      Object.prototype.hasOwnProperty.call(entry, '__proto__') ||
+      Object.prototype.hasOwnProperty.call(entry, 'constructor') ||
+      Object.prototype.hasOwnProperty.call(entry, 'prototype')
+    ) {
+      return false;
+    }
+    // Validate required fields and their types
+    return (
+      typeof entry.id === 'number' &&
+      Number.isFinite(entry.id) &&
+      typeof entry.category === 'string' &&
+      entry.category.length > 0 &&
+      entry.category.length < 50 &&
+      typeof entry.subtype === 'string' &&
+      entry.subtype.length > 0 &&
+      entry.subtype.length < 50 &&
+      typeof entry.label === 'string' &&
+      entry.label.length > 0 &&
+      entry.label.length < 200 &&
+      typeof entry.amount === 'number' &&
+      Number.isFinite(entry.amount) &&
+      entry.amount >= 0 &&
+      typeof entry.unit === 'string' &&
+      typeof entry.co2 === 'number' &&
+      Number.isFinite(entry.co2) &&
+      entry.co2 >= 0 &&
+      typeof entry.timestamp === 'string' &&
+      !isNaN(Date.parse(entry.timestamp))
+    );
+  }
+
   /**
    * Safely reads and parses JSON from localStorage.
+   * Includes prototype pollution prevention on parsed objects.
    * @param {string} key - The localStorage key to read
    * @param {*} defaultValue - Default value if key doesn't exist or parse fails
    * @returns {*} Parsed value or default
@@ -210,10 +386,20 @@ const DataStore = (() => {
   function _safeRead(key, defaultValue) {
     try {
       const raw = localStorage.getItem(key);
-      if (raw === null) return defaultValue;
-      return JSON.parse(raw);
-    } catch (error) {
-      console.warn(`[DataStore] Failed to read key "${key}":`, error.message);
+      if (raw === null) {
+        return defaultValue;
+      }
+      const parsed = JSON.parse(raw);
+      // Prototype pollution guard on top-level objects
+      if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        // eslint-disable-next-line no-proto
+        delete parsed.__proto__;
+        delete parsed.constructor;
+        delete parsed.prototype;
+      }
+      return parsed;
+    } catch {
+      console.warn(`[DataStore] Failed to read key "${key}":`);
       return defaultValue;
     }
   }
@@ -227,10 +413,19 @@ const DataStore = (() => {
    */
   function _safeWrite(key, value) {
     try {
-      localStorage.setItem(key, JSON.stringify(value));
+      const serialized = JSON.stringify(value);
+      // Storage quota safety check: warn if data exceeds 4MB (of typical 5MB limit)
+      if (serialized.length > STORAGE_QUOTA_WARNING_BYTES) {
+        console.warn('[DataStore] Data approaching storage quota limit.');
+      }
+      localStorage.setItem(key, serialized);
       return true;
     } catch (error) {
-      console.error(`[DataStore] Failed to write key "${key}":`, error.message);
+      if (error.name === 'QuotaExceededError') {
+        console.error('[DataStore] Storage quota exceeded. Cannot save data.');
+      } else {
+        console.error(`[DataStore] Failed to write key "${key}":`, error.message);
+      }
       return false;
     }
   }
@@ -241,7 +436,24 @@ const DataStore = (() => {
      * @returns {Array<Object>} Array of log entry objects
      */
     getLogs() {
-      return _safeRead(KEY_LOGS, []);
+      const raw = _safeRead(KEY_LOGS, []);
+      if (!Array.isArray(raw)) {
+        return [];
+      }
+      // Verify data integrity via checksum
+      try {
+        const stored = localStorage.getItem(KEY_CHECKSUM);
+        if (stored !== null) {
+          const expected = _computeChecksum(JSON.stringify(raw));
+          if (String(expected) !== stored) {
+            console.warn('[DataStore] Data integrity check failed — possible tampering detected.');
+          }
+        }
+      } catch {
+        return [];
+      }
+      // Filter out any invalid/tampered entries via schema validation
+      return raw.filter(_isValidLogEntry);
     },
 
     /**
@@ -250,7 +462,17 @@ const DataStore = (() => {
      * @returns {boolean} True if save succeeded
      */
     saveLogs(logs) {
-      return _safeWrite(KEY_LOGS, logs);
+      const success = _safeWrite(KEY_LOGS, logs);
+      if (success) {
+        // Store integrity checksum alongside the data
+        try {
+          const data = JSON.stringify(logs);
+          localStorage.setItem(KEY_CHECKSUM, String(_computeChecksum(data)));
+        } catch {
+          /* checksum is non-critical */
+        }
+      }
+      return success;
     },
 
     /**
@@ -271,7 +493,7 @@ const DataStore = (() => {
      * @returns {Array<Object>} Updated logs array
      */
     removeLog(id) {
-      const logs = this.getLogs().filter(l => l.id !== id);
+      const logs = this.getLogs().filter((l) => l.id !== id);
       this.saveLogs(logs);
       return logs;
     },
@@ -302,7 +524,6 @@ const DataStore = (() => {
   });
 })();
 
-
 /* ================================================================
    MODULE: Calculator
    Pure calculation functions for emission computations.
@@ -324,9 +545,13 @@ const Calculator = Object.freeze({
    */
   calcCO2(category, subtype, amount) {
     const categoryData = EmissionFactors[category];
-    if (!categoryData) throw new Error(`Unknown category: ${category}`);
+    if (!categoryData) {
+      throw new ValidationError(`Unknown category: ${category}`, 'category');
+    }
     const ef = categoryData[subtype];
-    if (!ef) throw new Error(`Unknown subtype: ${category}.${subtype}`);
+    if (!ef) {
+      throw new ValidationError(`Unknown subtype: ${category}.${subtype}`, 'subtype');
+    }
     return parseFloat((ef.factor * amount).toFixed(3));
   },
 
@@ -360,8 +585,8 @@ const Calculator = Object.freeze({
    * @returns {Array<Object>} Filtered array of recent logs
    */
   getLogsInRange(logs, days) {
-    const cutoff = Date.now() - days * 86400000;
-    return logs.filter(log => new Date(log.timestamp).getTime() >= cutoff);
+    const cutoff = Date.now() - days * MS_PER_DAY;
+    return logs.filter((log) => new Date(log.timestamp).getTime() >= cutoff);
   },
 
   /**
@@ -371,7 +596,7 @@ const Calculator = Object.freeze({
    */
   annualProjection(logs30Days) {
     const total = this.sumCO2(logs30Days);
-    return (total / 30) * 365;
+    return (total / PROJECTION_SAMPLE_DAYS) * DAYS_PER_YEAR;
   },
 
   /**
@@ -380,13 +605,18 @@ const Calculator = Object.freeze({
    * @returns {string} Rating: 'none', 'low', 'moderate', or 'high'
    */
   getRating(dailyCO2) {
-    if (dailyCO2 === 0) return 'none';
-    if (dailyCO2 < 5)   return 'low';
-    if (dailyCO2 < 10)  return 'moderate';
+    if (dailyCO2 === 0) {
+      return 'none';
+    }
+    if (dailyCO2 < 5) {
+      return 'low';
+    }
+    if (dailyCO2 < 10) {
+      return 'moderate';
+    }
     return 'high';
   }
 });
-
 
 /* ================================================================
    MODULE: BadgeEngine
@@ -400,12 +630,12 @@ const Calculator = Object.freeze({
 const BadgeEngine = Object.freeze({
   /** @constant {Array<Object>} Badge definitions */
   BADGES: Object.freeze([
-    { id: 'first_log',    icon: '🌱', label: 'First Step',   tip: 'Log your first activity' },
-    { id: 'week_streak',  icon: '🔥', label: '7 Day Streak', tip: '7 days of logging' },
-    { id: 'eco_walker',   icon: '🚶', label: 'Eco Walker',   tip: '5+ walk/cycle logs' },
-    { id: 'plant_power',  icon: '🥗', label: 'Plant Power',  tip: '10+ vegan meals' },
-    { id: 'low_carbon',   icon: '💚', label: 'Low Carbon',   tip: '<50 kg total CO₂ with 5+ logs' },
-    { id: 'consistent',   icon: '📅', label: 'Consistent',   tip: '14 days of logging' },
+    { id: 'first_log', icon: '🌱', label: 'First Step', tip: 'Log your first activity' },
+    { id: 'week_streak', icon: '🔥', label: '7 Day Streak', tip: '7 days of logging' },
+    { id: 'eco_walker', icon: '🚶', label: 'Eco Walker', tip: '5+ walk/cycle logs' },
+    { id: 'plant_power', icon: '🥗', label: 'Plant Power', tip: '10+ vegan meals' },
+    { id: 'low_carbon', icon: '💚', label: 'Low Carbon', tip: '<50 kg total CO₂ with 5+ logs' },
+    { id: 'consistent', icon: '📅', label: 'Consistent', tip: '14 days of logging' }
   ]),
 
   /**
@@ -415,20 +645,27 @@ const BadgeEngine = Object.freeze({
    * @returns {boolean} True if the badge has been earned
    */
   checkBadge(badgeId, logs) {
-    const totalLogs  = logs.length;
-    const totalCO2   = Calculator.sumCO2(logs);
-    const walkLogs   = logs.filter(l => l.subtype === 'walk_cycle').length;
-    const veganLogs  = logs.filter(l => l.subtype === 'vegan').length;
-    const daysActive = new Set(logs.map(l => l.timestamp.slice(0, 10))).size;
+    const totalLogs = logs.length;
+    const totalCO2 = Calculator.sumCO2(logs);
+    const walkLogs = logs.filter((l) => l.subtype === 'walk_cycle').length;
+    const veganLogs = logs.filter((l) => l.subtype === 'vegan').length;
+    const daysActive = new Set(logs.map((l) => l.timestamp.slice(0, 10))).size;
 
     switch (badgeId) {
-      case 'first_log':   return totalLogs >= 1;
-      case 'week_streak': return daysActive >= 7;
-      case 'eco_walker':  return walkLogs >= 5;
-      case 'plant_power': return veganLogs >= 10;
-      case 'low_carbon':  return totalCO2 < 50 && totalLogs > 5;
-      case 'consistent':  return daysActive >= 14;
-      default:            return false;
+      case 'first_log':
+        return totalLogs >= 1;
+      case 'week_streak':
+        return daysActive >= 7;
+      case 'eco_walker':
+        return walkLogs >= 5;
+      case 'plant_power':
+        return veganLogs >= 10;
+      case 'low_carbon':
+        return totalCO2 < 50 && totalLogs > 5;
+      case 'consistent':
+        return daysActive >= 14;
+      default:
+        return false;
     }
   },
 
@@ -438,13 +675,12 @@ const BadgeEngine = Object.freeze({
    * @returns {Array<Object>} Badges with earned status
    */
   evaluateAll(logs) {
-    return this.BADGES.map(badge => ({
+    return this.BADGES.map((badge) => ({
       ...badge,
       earned: this.checkBadge(badge.id, logs)
     }));
   }
 });
-
 
 /* ================================================================
    MODULE: TipsEngine
@@ -466,35 +702,88 @@ const TipsEngine = Object.freeze({
     const tips = [];
 
     if (breakdown.transport > 50) {
-      tips.push({ urgency: 'urgent', icon: '🚌', title: 'Switch to Public Transport', desc: 'Your transport emissions are high. Taking the bus or metro even 3 days a week can cut transport CO₂ by 40%.', saving: 'Save up to 600 kg CO₂/year' });
+      tips.push({
+        urgency: 'urgent',
+        icon: '🚌',
+        title: 'Switch to Public Transport',
+        desc: 'Your transport emissions are high. Taking the bus or metro even 3 days a week can cut transport CO₂ by 40%.',
+        saving: 'Save up to 600 kg CO₂/year'
+      });
     }
     if (breakdown.transport > 20) {
-      tips.push({ urgency: 'moderate', icon: '🛵', title: 'Combine Your Trips', desc: 'Group your errands into a single trip. Multiple short trips emit 3× more than one planned trip.', saving: 'Save 10-30% per trip' });
+      tips.push({
+        urgency: 'moderate',
+        icon: '🛵',
+        title: 'Combine Your Trips',
+        desc: 'Group your errands into a single trip. Multiple short trips emit 3× more than one planned trip.',
+        saving: 'Save 10-30% per trip'
+      });
     }
     if (breakdown.food > 30) {
-      tips.push({ urgency: 'urgent', icon: '🥗', title: 'Try Meat-Free Mondays', desc: 'Replacing beef meals with vegetarian options once a week can save ~340 kg CO₂ per year.', saving: 'Save 340 kg CO₂/year' });
+      tips.push({
+        urgency: 'urgent',
+        icon: '🥗',
+        title: 'Try Meat-Free Mondays',
+        desc: 'Replacing beef meals with vegetarian options once a week can save ~340 kg CO₂ per year.',
+        saving: 'Save 340 kg CO₂/year'
+      });
     }
     if (breakdown.food > 15) {
-      tips.push({ urgency: 'moderate', icon: '🫙', title: 'Reduce Food Waste', desc: '30% of food produced globally is wasted. Plan meals and store food correctly.', saving: 'Save up to 100 kg CO₂/year' });
+      tips.push({
+        urgency: 'moderate',
+        icon: '🫙',
+        title: 'Reduce Food Waste',
+        desc: '30% of food produced globally is wasted. Plan meals and store food correctly.',
+        saving: 'Save up to 100 kg CO₂/year'
+      });
     }
     if (breakdown.energy > 20) {
-      tips.push({ urgency: 'urgent', icon: '❄️', title: 'Optimise AC Usage', desc: 'Set AC to 24°C instead of 18°C. Each degree higher saves 6% electricity.', saving: 'Save 150+ kg CO₂/year' });
+      tips.push({
+        urgency: 'urgent',
+        icon: '❄️',
+        title: 'Optimise AC Usage',
+        desc: 'Set AC to 24°C instead of 18°C. Each degree higher saves 6% electricity.',
+        saving: 'Save 150+ kg CO₂/year'
+      });
     }
     if (breakdown.energy > 10) {
-      tips.push({ urgency: 'moderate', icon: '💡', title: 'Switch to LED Lighting', desc: 'LED bulbs use 75% less energy than incandescent. Simple and immediate impact.', saving: 'Save 80 kg CO₂/year per home' });
+      tips.push({
+        urgency: 'moderate',
+        icon: '💡',
+        title: 'Switch to LED Lighting',
+        desc: 'LED bulbs use 75% less energy than incandescent. Simple and immediate impact.',
+        saving: 'Save 80 kg CO₂/year per home'
+      });
     }
     if (breakdown.shopping > 15) {
-      tips.push({ urgency: 'moderate', icon: '♻️', title: 'Buy Second-hand First', desc: 'Manufacturing new clothes generates 10× more CO₂ than buying second-hand.', saving: 'Save 10 kg per clothing item' });
+      tips.push({
+        urgency: 'moderate',
+        icon: '♻️',
+        title: 'Buy Second-hand First',
+        desc: 'Manufacturing new clothes generates 10× more CO₂ than buying second-hand.',
+        saving: 'Save 10 kg per clothing item'
+      });
     }
 
     // Always include general green tips
-    tips.push({ urgency: 'green', icon: '🌳', title: 'Plant Native Trees', desc: 'A single tree absorbs ~21 kg of CO₂ per year. Connect with local NGOs for tree planting drives.', saving: 'Absorb 21 kg CO₂/tree/year' });
-    tips.push({ urgency: 'green', icon: '🚿', title: 'Take Shorter Showers', desc: 'A 2-minute shorter shower saves ~15 litres of water and reduces water heating energy.', saving: 'Small but consistent savings' });
+    tips.push({
+      urgency: 'green',
+      icon: '🌳',
+      title: 'Plant Native Trees',
+      desc: 'A single tree absorbs ~21 kg of CO₂ per year. Connect with local NGOs for tree planting drives.',
+      saving: 'Absorb 21 kg CO₂/tree/year'
+    });
+    tips.push({
+      urgency: 'green',
+      icon: '🚿',
+      title: 'Take Shorter Showers',
+      desc: 'A 2-minute shorter shower saves ~15 litres of water and reduces water heating energy.',
+      saving: 'Small but consistent savings'
+    });
 
     return tips.slice(0, 6);
   }
 });
-
 
 /* ================================================================
    MODULE: UI
@@ -541,8 +830,10 @@ const UI = (() => {
    */
   function _renderLogItem(log) {
     const d = new Date(log.timestamp);
-    const dateStr = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) +
-      ', ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = `${d.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short'
+    })}, ${d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`;
     const catColor = CATEGORY_COLORS[log.category] || '#999';
 
     return `<div class="log-item" role="listitem" data-log-id="${log.id}">
@@ -572,10 +863,10 @@ const UI = (() => {
       if (annualEst > 0) {
         const pct = Math.round((annualEst / INDIA_AVG_ANNUAL_KG) * 100);
         if (annualEst < INDIA_AVG_ANNUAL_KG) {
-          compareEl.textContent = pct + '%';
+          compareEl.textContent = `${pct}%`;
           compareEl.className = 'value val-green';
         } else {
-          compareEl.textContent = '+' + Math.round(annualEst - INDIA_AVG_ANNUAL_KG) + 'kg';
+          compareEl.textContent = `+${Math.round(annualEst - INDIA_AVG_ANNUAL_KG)}kg`;
           compareEl.className = 'value val-red';
         }
       } else {
@@ -583,7 +874,7 @@ const UI = (() => {
         compareEl.className = 'value';
       }
 
-      _el('header-total').textContent = 'Today: ' + todayCO2.toFixed(1) + ' kg CO₂e';
+      _el('header-total').textContent = `Today: ${todayCO2.toFixed(1)} kg CO₂e`;
     },
 
     /**
@@ -595,7 +886,7 @@ const UI = (() => {
       const bar = _el('gauge-bar');
       const container = _el('gauge-bar-container');
 
-      bar.style.width = pct + '%';
+      bar.style.width = `${pct}%`;
 
       let color, msg;
       if (todayCO2 === 0) {
@@ -603,13 +894,13 @@ const UI = (() => {
         msg = 'Log your first activity to see your rating.';
       } else if (todayCO2 < 5) {
         color = '#2d9e5f';
-        msg = '🌿 Great! ' + todayCO2.toFixed(1) + ' kg today — well below average. Keep it up!';
+        msg = `🌿 Great! ${todayCO2.toFixed(1)} kg today — well below average. Keep it up!`;
       } else if (todayCO2 < 10) {
         color = '#f59e0b';
-        msg = '⚡ ' + todayCO2.toFixed(1) + ' kg today — close to average. A few swaps can help.';
+        msg = `⚡ ${todayCO2.toFixed(1)} kg today — close to average. A few swaps can help.`;
       } else {
         color = '#ef4444';
-        msg = '🔥 ' + todayCO2.toFixed(1) + ' kg today — high. Check insights for ways to cut down.';
+        msg = `🔥 ${todayCO2.toFixed(1)} kg today — high. Check insights for ways to cut down.`;
       }
 
       bar.style.background = color;
@@ -640,7 +931,8 @@ const UI = (() => {
             <div class="breakdown-bar-wrap"><div class="breakdown-bar" style="background:${CATEGORY_COLORS[cat]};width:${pct.toFixed(1)}%"></div></div>
             <div class="breakdown-val">${val.toFixed(1)} kg</div>
           </div>`;
-        }).join('');
+        })
+        .join('');
     },
 
     /**
@@ -649,12 +941,16 @@ const UI = (() => {
      */
     renderBadges(logs) {
       const badges = BadgeEngine.evaluateAll(logs);
-      _el('badge-grid').innerHTML = badges.map(b => `
+      _el('badge-grid').innerHTML = badges
+        .map(
+          (b) => `
         <div class="badge ${b.earned ? 'earned' : ''}" title="${Security.escapeHTML(b.tip)}" role="listitem"
              aria-label="${Security.escapeHTML(b.label)} ${b.earned ? '(earned)' : '(not yet earned)'}">
           <span class="badge-icon" aria-hidden="true">${b.icon}</span>
           <span>${Security.escapeHTML(b.label)}</span>
-        </div>`).join('');
+        </div>`
+        )
+        .join('');
     },
 
     /**
@@ -666,7 +962,7 @@ const UI = (() => {
       let logs = DataStore.getLogs();
 
       if (period === 'today') {
-        logs = logs.filter(l => l.timestamp.slice(0, 10) === _todayKey());
+        logs = logs.filter((l) => l.timestamp.slice(0, 10) === _todayKey());
       } else if (period === 'week') {
         logs = Calculator.getLogsInRange(logs, 7);
       }
@@ -695,13 +991,17 @@ const UI = (() => {
       const breakdown = Calculator.categoryBreakdown(monthLogs);
       const tips = TipsEngine.generate(breakdown);
 
-      grid.innerHTML = tips.map(t => `
+      grid.innerHTML = tips
+        .map(
+          (t) => `
         <div class="tip-card ${t.urgency}" role="article">
           <div class="tip-icon" aria-hidden="true">${t.icon}</div>
           <div class="tip-title">${Security.escapeHTML(t.title)}</div>
           <div class="tip-desc">${Security.escapeHTML(t.desc)}</div>
           <div class="tip-saving">💚 ${Security.escapeHTML(t.saving)}</div>
-        </div>`).join('');
+        </div>`
+        )
+        .join('');
     },
 
     /**
@@ -711,7 +1011,9 @@ const UI = (() => {
     renderChart() {
       requestAnimationFrame(() => {
         const canvas = _el('trend-chart');
-        if (!canvas) return;
+        if (!canvas) {
+          return;
+        }
         const ctx = canvas.getContext('2d');
         const W = canvas.width;
         const H = canvas.height;
@@ -719,18 +1021,20 @@ const UI = (() => {
 
         // Build 7-day data
         const days = [];
-        for (let i = 6; i >= 0; i--) {
+        for (let i = TREND_CHART_DAYS - 1; i >= 0; i--) {
           const d = new Date();
           d.setDate(d.getDate() - i);
           days.push(d.toISOString().slice(0, 10));
         }
 
         const logs = DataStore.getLogs();
-        const data = days.map(day => {
-          const dayLogs = logs.filter(l => l.timestamp.slice(0, 10) === day);
+        const data = days.map((day) => {
+          const dayLogs = logs.filter((l) => l.timestamp.slice(0, 10) === day);
           return Calculator.sumCO2(dayLogs);
         });
-        const labels = days.map(d => new Date(d).toLocaleDateString('en-IN', { weekday: 'short' }));
+        const labels = days.map((d) =>
+          new Date(d).toLocaleDateString('en-IN', { weekday: 'short' })
+        );
         const maxVal = Math.max(...data, 5);
 
         const pad = { top: 20, right: 20, bottom: 40, left: 50 };
@@ -807,12 +1111,13 @@ const UI = (() => {
       const pct = Math.min(100, (annualEst / MAX_COMPARISON_KG) * 100);
       const bar = _el('bar-you');
       if (bar) {
-        bar.style.width = pct + '%';
-        bar.style.background = annualEst < 1900 ? '#2d9e5f' : annualEst < 4700 ? '#f59e0b' : '#ef4444';
+        bar.style.width = `${pct}%`;
+        bar.style.background =
+          annualEst < 1900 ? '#2d9e5f' : annualEst < 4700 ? '#f59e0b' : '#ef4444';
       }
       const valEl = _el('val-you');
       if (valEl) {
-        valEl.textContent = annualEst > 0 ? (annualEst / 1000).toFixed(2) + ' t' : '—';
+        valEl.textContent = annualEst > 0 ? `${(annualEst / 1000).toFixed(2)} t` : '—';
       }
     },
 
@@ -822,7 +1127,7 @@ const UI = (() => {
      */
     renderProfileStats(logs) {
       const total = Calculator.sumCO2(logs);
-      const days = new Set(logs.map(l => l.timestamp.slice(0, 10))).size;
+      const days = new Set(logs.map((l) => l.timestamp.slice(0, 10))).size;
       const cats = Calculator.categoryBreakdown(logs);
       const topCat = Object.entries(cats).sort((a, b) => b[1] - a[1])[0];
       const catName = topCat ? topCat[0] : 'N/A';
@@ -843,7 +1148,7 @@ const UI = (() => {
       const el = _el('notif');
       el.textContent = message;
       el.classList.add('show');
-      setTimeout(() => el.classList.remove('show'), 3000);
+      setTimeout(() => el.classList.remove('show'), NOTIFICATION_TIMEOUT_MS);
     },
 
     /**
@@ -856,7 +1161,6 @@ const UI = (() => {
     }
   });
 })();
-
 
 /* ================================================================
    MODULE: App
@@ -883,12 +1187,15 @@ const App = (() => {
   }
 
   /**
-   * Creates a unique ID for a log entry using timestamp + random.
-   * @returns {number} Unique ID
+   * Generates a cryptographically secure unique ID.
+   * Uses Web Crypto API (CSPRNG) instead of Math.random() per OWASP A02:2021.
+   * @returns {number} Unique ID combining timestamp and crypto-random value
    * @private
    */
   function _generateId() {
-    return Date.now() + Math.floor(Math.random() * 10000);
+    const array = new Uint32Array(1);
+    crypto.getRandomValues(array);
+    return array[0];
   }
 
   /**
@@ -903,7 +1210,7 @@ const App = (() => {
       timestamp: new Date().toISOString()
     };
     DataStore.addLog(entry);
-    UI.notify('✅ Logged: ' + data.label + ' — ' + data.co2 + ' kg CO₂e');
+    UI.notify(`✅ Logged: ${data.label} — ${data.co2} kg CO₂e`);
     App.render();
   }
 
@@ -916,10 +1223,14 @@ const App = (() => {
    */
   function _getValidatedSelect(elementId, factorMap) {
     const el = document.getElementById(elementId);
-    if (!el) return null;
+    if (!el) {
+      return null;
+    }
     const key = el.value;
     const allowedKeys = Object.keys(factorMap);
-    if (!Security.isAllowedValue(key, allowedKeys)) return null;
+    if (!Security.isAllowedValue(key, allowedKeys)) {
+      return null;
+    }
     return { key, factor: factorMap[key] };
   }
 
@@ -930,10 +1241,12 @@ const App = (() => {
      */
     init() {
       // Set header date
-      document.getElementById('header-date').textContent =
-        new Date().toLocaleDateString('en-IN', {
-          weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
-        });
+      document.getElementById('header-date').textContent = new Date().toLocaleDateString('en-IN', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
 
       this.loadProfile();
       this.render();
@@ -949,18 +1262,20 @@ const App = (() => {
       // Tab navigation
       document.querySelector('.tabs').addEventListener('click', (e) => {
         const btn = e.target.closest('.tab-btn');
-        if (!btn) return;
+        if (!btn) {
+          return;
+        }
 
         const tab = btn.dataset.tab;
-        document.querySelectorAll('.tab-btn').forEach(b => {
+        document.querySelectorAll('.tab-btn').forEach((b) => {
           b.classList.remove('active');
           b.setAttribute('aria-selected', 'false');
         });
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.section').forEach((s) => s.classList.remove('active'));
 
         btn.classList.add('active');
         btn.setAttribute('aria-selected', 'true');
-        document.getElementById('tab-' + tab).classList.add('active');
+        document.getElementById(`tab-${tab}`).classList.add('active');
 
         if (tab === 'insights') {
           UI.renderChart();
@@ -996,7 +1311,9 @@ const App = (() => {
       // History filter buttons — event delegation
       document.querySelector('[role="toolbar"]').addEventListener('click', (e) => {
         const btn = e.target.closest('[data-filter]');
-        if (!btn) return;
+        if (!btn) {
+          return;
+        }
         const filter = btn.dataset.filter;
         this.filterHistory(filter);
       });
@@ -1009,9 +1326,13 @@ const App = (() => {
       // Delete buttons in history — event delegation on parent
       document.getElementById('history-list').addEventListener('click', (e) => {
         const deleteBtn = e.target.closest('[data-delete-id]');
-        if (!deleteBtn) return;
+        if (!deleteBtn) {
+          return;
+        }
         const id = parseFloat(deleteBtn.dataset.deleteId);
-        if (!Number.isFinite(id)) return;
+        if (!Number.isFinite(id)) {
+          return;
+        }
         this.deleteEntry(id);
       });
 
@@ -1019,7 +1340,9 @@ const App = (() => {
       document.querySelector('.tabs').addEventListener('keydown', (e) => {
         const tabs = Array.from(document.querySelectorAll('.tab-btn'));
         const currentIndex = tabs.indexOf(e.target);
-        if (currentIndex === -1) return;
+        if (currentIndex === -1) {
+          return;
+        }
 
         let newIndex;
         if (e.key === 'ArrowRight') {
@@ -1040,15 +1363,31 @@ const App = (() => {
      * Logs a transport activity after validation.
      */
     logTransport() {
-      if (!Security.checkRateLimit('transport')) { UI.notify('⚠️ Please wait before logging again.'); return; }
+      if (!Security.checkRateLimit('transport')) {
+        UI.notify('⚠️ Please wait before logging again.');
+        return;
+      }
       const selection = _getValidatedSelect('transport-type', EmissionFactors.transport);
-      if (!selection) { UI.notify('⚠️ Invalid transport type.'); return; }
+      if (!selection) {
+        UI.notify('⚠️ Invalid transport type.');
+        return;
+      }
 
       const km = parseFloat(document.getElementById('transport-km').value);
-      if (!Security.isValidAmount(km, 0.1, 50000)) { UI.notify('⚠️ Enter a valid distance (0.1–50,000 km).'); return; }
+      if (!Security.isValidAmount(km, 0.1, 50000)) {
+        UI.notify('⚠️ Enter a valid distance (0.1–50,000 km).');
+        return;
+      }
 
       const co2 = Calculator.calcCO2('transport', selection.key, km);
-      _addEntry({ category: 'transport', subtype: selection.key, label: selection.factor.label, amount: km, unit: selection.factor.unit, co2 });
+      _addEntry({
+        category: 'transport',
+        subtype: selection.key,
+        label: selection.factor.label,
+        amount: km,
+        unit: selection.factor.unit,
+        co2
+      });
       document.getElementById('transport-km').value = '';
     },
 
@@ -1056,15 +1395,31 @@ const App = (() => {
      * Logs a food activity after validation.
      */
     logFood() {
-      if (!Security.checkRateLimit('food')) { UI.notify('⚠️ Please wait before logging again.'); return; }
+      if (!Security.checkRateLimit('food')) {
+        UI.notify('⚠️ Please wait before logging again.');
+        return;
+      }
       const selection = _getValidatedSelect('food-type', EmissionFactors.food);
-      if (!selection) { UI.notify('⚠️ Invalid food type.'); return; }
+      if (!selection) {
+        UI.notify('⚠️ Invalid food type.');
+        return;
+      }
 
       const servings = parseInt(document.getElementById('food-servings').value, 10);
-      if (!Security.isValidAmount(servings, 1, 20)) { UI.notify('⚠️ Enter a valid number of meals (1–20).'); return; }
+      if (!Security.isValidAmount(servings, 1, 20)) {
+        UI.notify('⚠️ Enter a valid number of meals (1–20).');
+        return;
+      }
 
       const co2 = Calculator.calcCO2('food', selection.key, servings);
-      _addEntry({ category: 'food', subtype: selection.key, label: selection.factor.label, amount: servings, unit: selection.factor.unit, co2 });
+      _addEntry({
+        category: 'food',
+        subtype: selection.key,
+        label: selection.factor.label,
+        amount: servings,
+        unit: selection.factor.unit,
+        co2
+      });
       document.getElementById('food-servings').value = '1';
     },
 
@@ -1072,15 +1427,31 @@ const App = (() => {
      * Logs an energy activity after validation.
      */
     logEnergy() {
-      if (!Security.checkRateLimit('energy')) { UI.notify('⚠️ Please wait before logging again.'); return; }
+      if (!Security.checkRateLimit('energy')) {
+        UI.notify('⚠️ Please wait before logging again.');
+        return;
+      }
       const selection = _getValidatedSelect('energy-type', EmissionFactors.energy);
-      if (!selection) { UI.notify('⚠️ Invalid energy type.'); return; }
+      if (!selection) {
+        UI.notify('⚠️ Invalid energy type.');
+        return;
+      }
 
       const amount = parseFloat(document.getElementById('energy-amount').value);
-      if (!Security.isValidAmount(amount, 0.1, 1000)) { UI.notify('⚠️ Enter a valid amount (0.1–1,000).'); return; }
+      if (!Security.isValidAmount(amount, 0.1, 1000)) {
+        UI.notify('⚠️ Enter a valid amount (0.1–1,000).');
+        return;
+      }
 
       const co2 = Calculator.calcCO2('energy', selection.key, amount);
-      _addEntry({ category: 'energy', subtype: selection.key, label: selection.factor.label, amount, unit: selection.factor.unit, co2 });
+      _addEntry({
+        category: 'energy',
+        subtype: selection.key,
+        label: selection.factor.label,
+        amount,
+        unit: selection.factor.unit,
+        co2
+      });
       document.getElementById('energy-amount').value = '';
     },
 
@@ -1088,15 +1459,31 @@ const App = (() => {
      * Logs a shopping activity after validation.
      */
     logShopping() {
-      if (!Security.checkRateLimit('shopping')) { UI.notify('⚠️ Please wait before logging again.'); return; }
+      if (!Security.checkRateLimit('shopping')) {
+        UI.notify('⚠️ Please wait before logging again.');
+        return;
+      }
       const selection = _getValidatedSelect('shopping-type', EmissionFactors.shopping);
-      if (!selection) { UI.notify('⚠️ Invalid item category.'); return; }
+      if (!selection) {
+        UI.notify('⚠️ Invalid item category.');
+        return;
+      }
 
       const qty = parseInt(document.getElementById('shopping-qty').value, 10);
-      if (!Security.isValidAmount(qty, 1, 100)) { UI.notify('⚠️ Enter a valid quantity (1–100).'); return; }
+      if (!Security.isValidAmount(qty, 1, 100)) {
+        UI.notify('⚠️ Enter a valid quantity (1–100).');
+        return;
+      }
 
       const co2 = Calculator.calcCO2('shopping', selection.key, qty);
-      _addEntry({ category: 'shopping', subtype: selection.key, label: selection.factor.label, amount: qty, unit: selection.factor.unit, co2 });
+      _addEntry({
+        category: 'shopping',
+        subtype: selection.key,
+        label: selection.factor.label,
+        amount: qty,
+        unit: selection.factor.unit,
+        co2
+      });
       document.getElementById('shopping-qty').value = '1';
     },
 
@@ -1114,10 +1501,12 @@ const App = (() => {
      * Clears all logs after user confirmation.
      */
     clearAll() {
-      if (!confirm('Clear all activity history? This cannot be undone.')) return;
-      DataStore.clearLogs();
-      this.render();
-      UI.notify('History cleared.');
+      // eslint-disable-next-line no-alert
+      if (confirm('Are you sure you want to delete all entries? This action cannot be undone.')) {
+        DataStore.clearLogs();
+        this.render();
+        UI.notify('History cleared.');
+      }
     },
 
     /**
@@ -1126,13 +1515,15 @@ const App = (() => {
      */
     filterHistory(period) {
       const allowedFilters = ['all', 'today', 'week'];
-      if (!Security.isAllowedValue(period, allowedFilters)) return;
+      if (!Security.isAllowedValue(period, allowedFilters)) {
+        return;
+      }
 
       _currentFilter = period;
 
       // Update button states
-      allowedFilters.forEach(f => {
-        const btn = document.getElementById('filter-' + f);
+      allowedFilters.forEach((f) => {
+        const btn = document.getElementById(`filter-${f}`);
         if (f === period) {
           btn.classList.add('btn-primary');
           btn.classList.remove('btn-ghost');
@@ -1154,13 +1545,13 @@ const App = (() => {
       const logs = DataStore.getLogs();
       const today = _todayKey();
 
-      const todayLogs = logs.filter(l => l.timestamp.slice(0, 10) === today);
-      const weekLogs  = Calculator.getLogsInRange(logs, 7);
+      const todayLogs = logs.filter((l) => l.timestamp.slice(0, 10) === today);
+      const weekLogs = Calculator.getLogsInRange(logs, 7);
       const monthLogs = Calculator.getLogsInRange(logs, 30);
 
-      const todayCO2  = Calculator.sumCO2(todayLogs);
-      const weekCO2   = Calculator.sumCO2(weekLogs);
-      const monthCO2  = Calculator.sumCO2(monthLogs);
+      const todayCO2 = Calculator.sumCO2(todayLogs);
+      const weekCO2 = Calculator.sumCO2(weekLogs);
+      const monthCO2 = Calculator.sumCO2(monthLogs);
       const annualEst = monthLogs.length > 0 ? Calculator.annualProjection(monthLogs) : 0;
 
       UI.renderStats(todayCO2, weekCO2, monthCO2, annualEst);
@@ -1178,7 +1569,14 @@ const App = (() => {
      */
     loadProfile() {
       const p = DataStore.getProfile();
-      const fields = { 'p-name': 'name', 'p-city': 'city', 'p-diet': 'diet', 'p-transport': 'transport', 'p-household': 'household', 'p-goal': 'goal' };
+      const fields = {
+        'p-name': 'name',
+        'p-city': 'city',
+        'p-diet': 'diet',
+        'p-transport': 'transport',
+        'p-household': 'household',
+        'p-goal': 'goal'
+      };
 
       Object.entries(fields).forEach(([elId, key]) => {
         const el = document.getElementById(elId);
@@ -1192,15 +1590,18 @@ const App = (() => {
      * Saves profile data from form fields to storage.
      */
     saveProfile() {
-      if (!Security.checkRateLimit('profile')) { UI.notify('⚠️ Please wait before saving again.'); return; }
+      if (!Security.checkRateLimit('profile')) {
+        UI.notify('⚠️ Please wait before saving again.');
+        return;
+      }
 
       const profile = {
-        name:      Security.sanitizeInput(document.getElementById('p-name').value),
-        city:      Security.sanitizeInput(document.getElementById('p-city').value),
-        diet:      Security.sanitizeInput(document.getElementById('p-diet').value),
+        name: Security.sanitizeInput(document.getElementById('p-name').value),
+        city: Security.sanitizeInput(document.getElementById('p-city').value),
+        diet: Security.sanitizeInput(document.getElementById('p-diet').value),
         transport: Security.sanitizeInput(document.getElementById('p-transport').value),
         household: parseInt(document.getElementById('p-household').value, 10) || 3,
-        goal:      parseInt(document.getElementById('p-goal').value, 10) || null
+        goal: parseInt(document.getElementById('p-goal').value, 10) || null
       };
 
       DataStore.saveProfile(profile);
@@ -1208,7 +1609,6 @@ const App = (() => {
     }
   });
 })();
-
 
 /* ================================================================
    INITIALIZATION

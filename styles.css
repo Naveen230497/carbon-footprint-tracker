@@ -38,22 +38,22 @@
   --color-green-400: #3dbb74;
   --color-green-200: #a8e6bf;
   --color-green-100: #d4f5e3;
-  --color-green-50:  #eefbf4;
+  --color-green-50: #eefbf4;
 
   /* Accent colors */
-  --color-amber:  #f59e0b;
-  --color-red:    #ef4444;
-  --color-blue:   #3b82f6;
+  --color-amber: #f59e0b;
+  --color-red: #ef4444;
+  --color-blue: #3b82f6;
   --color-purple: #8b5cf6;
 
   /* Text */
-  --text-primary:   #0f1f15;
+  --text-primary: #0f1f15;
   --text-secondary: #2d4a38;
-  --text-muted:     #6b8f78;
+  --text-muted: #6b8f78;
 
   /* Surfaces */
-  --surface-bg:     #f5fbf7;
-  --surface-card:   #ffffff;
+  --surface-bg: #f5fbf7;
+  --surface-card: #ffffff;
   --surface-border: #d0eedd;
 
   /* Effects */
@@ -173,7 +173,9 @@ header {
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 500;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
   white-space: nowrap;
 }
 
@@ -243,10 +245,18 @@ header {
   margin-top: 0.2rem;
 }
 
-.val-green  { color: var(--color-green-500); }
-.val-amber  { color: var(--color-amber); }
-.val-red    { color: var(--color-red); }
-.val-blue   { color: var(--color-blue); }
+.val-green {
+  color: var(--color-green-500);
+}
+.val-amber {
+  color: var(--color-amber);
+}
+.val-red {
+  color: var(--color-red);
+}
+.val-blue {
+  color: var(--color-blue);
+}
 
 /* ----------------------------------------------------------------
    8. Gauge
@@ -278,7 +288,9 @@ header {
 .gauge-bar-fill {
   height: 100%;
   border-radius: var(--radius-full);
-  transition: width 0.5s ease, background var(--transition-normal);
+  transition:
+    width 0.5s ease,
+    background var(--transition-normal);
   min-width: 4px;
 }
 
@@ -349,7 +361,9 @@ header {
   font-size: var(--font-size-base);
   color: var(--text-primary);
   background: var(--surface-bg);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
   -webkit-appearance: none;
 }
 
@@ -379,7 +393,10 @@ header {
   font-size: var(--font-size-base);
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--transition-fast), transform 100ms, box-shadow var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    transform 100ms,
+    box-shadow var(--transition-fast);
 }
 
 .btn:active {
@@ -512,12 +529,26 @@ header {
   border-top: 4px solid var(--color-green-500);
 }
 
-.tip-card.urgent   { border-top-color: var(--color-red); }
-.tip-card.moderate  { border-top-color: var(--color-amber); }
+.tip-card.urgent {
+  border-top-color: var(--color-red);
+}
+.tip-card.moderate {
+  border-top-color: var(--color-amber);
+}
 
-.tip-icon  { font-size: var(--font-size-xl); margin-bottom: 0.5rem; }
-.tip-title { font-size: var(--font-size-base); font-weight: 700; margin-bottom: 0.3rem; }
-.tip-desc  { font-size: 0.82rem; color: var(--text-secondary); }
+.tip-icon {
+  font-size: var(--font-size-xl);
+  margin-bottom: 0.5rem;
+}
+.tip-title {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+.tip-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
 
 .tip-saving {
   font-size: 0.78rem;
