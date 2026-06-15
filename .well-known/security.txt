@@ -1,0 +1,3 @@
+Contact: https://github.com/Naveen230497/carbon-footprint-tracker/issues
+Expires: 2026-12-31T23:59:59.000Z
+Preferred-Languages: en
